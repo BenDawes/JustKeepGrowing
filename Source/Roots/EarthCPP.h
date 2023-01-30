@@ -24,11 +24,12 @@ public:
 	virtual void Tick(float DeltaTime) override;
 
 	UFUNCTION(BlueprintCallable)
-	float GetMoisture(FVector AtLocation);
+		float GetWater(FVector StartLocation, FVector EndLocation, float Radius, float Rate);
 
 	UFUNCTION(BlueprintCallable)
 	void UpdateAllMoisture(float Temperature, float Rainfall);
 
 	UFUNCTION(BlueprintCallable)
-	float DrainNutrients(FVector AtLocation);
+	float DrainNutrients(FVector StartLocation, FVector EndLocation, float Radius, float Rate);
+
 };

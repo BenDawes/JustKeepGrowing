@@ -25,3 +25,8 @@ void UBranchNubCPP::TickComponent(float DeltaTime, ELevelTick TickType, FActorCo
 
 }
 
+FResourceSet UBranchNubCPP::GetGrowthCost()
+{
+	return FResourceSet(10, 10);
+}
+

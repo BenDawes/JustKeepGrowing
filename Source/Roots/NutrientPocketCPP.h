@@ -23,4 +23,17 @@ public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
+	UFUNCTION(BlueprintCallable)
+		float DrainNutrients(float Rate);
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+		float StartingNutrients;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	float RemainingNutrients;
+
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+		UStaticMeshComponent* StaticMesh;
+
 };

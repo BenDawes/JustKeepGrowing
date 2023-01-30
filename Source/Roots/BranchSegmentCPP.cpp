@@ -5,6 +5,8 @@
 #include "BranchNubCPP.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "BranchCPP.h"
+#include <Kismet/GameplayStatics.h>
+#include "ResourceSetFunctions.h"
 
 
 // Sets default values
@@ -13,9 +15,9 @@ UBranchSegmentCPP::UBranchSegmentCPP()
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryComponentTick.bCanEverTick = true;
 
-	StartRadius = 50;
-	EndRadius = 40;
-	Length = 150;
+	StartRadius = 20;
+	EndRadius = 16;
+	Length = 120;
 }
 
 
@@ -45,31 +47,148 @@ void UBranchSegmentCPP::TickComponent(float DeltaTime, ELevelTick TickType, FAct
 
 void UBranchSegmentCPP::GenerateConnectionPoints()
 {
-	// TODO Calculate N supported branches (N = 1 for radius X, 2 for radius Y)
-	// If ConnectedBranches.Num >= N, set to none
-	// If diff > 0, generate random points along edge, 5 total, find 1 that is > X distance from all existing points
-	// Random point along edge =Random theta, random offset between 0.25 and 0.75
+	ConnectionPoints = TArray<FVector>();
+	if (StartRadius < 30 || ConnectedBranches.Num() == 2)
+	{
+		return;
+	}
+
+	FVector CandidatePoint = GetRandomFreePointOnEdge();
+	if (!CandidatePoint.IsNearlyZero())
+	{
+		ConnectionPoints.Add(CandidatePoint);
+	}
+
+	if (StartRadius < 40 || ConnectedBranches.Num() == 2)
+	{
+		return;
+	}
+	CandidatePoint = GetRandomFreePointOnEdge();
+	if (!CandidatePoint.IsNearlyZero())
+	{
+		ConnectionPoints.Add(CandidatePoint);
+	}
 }
 
-FVector UBranchSegmentCPP::GetSegmentVector()
+FVector UBranchSegmentCPP::GetEndLocation()
 {
 	FRotator Rot = GetComponentRotation();
-	return Rot.RotateVector(FVector(1, 0, 0)) * Length;
+	return GetComponentLocation() + Rot.RotateVector(FVector(0, 0, 1)) * Length;
+}
+
+FVector UBranchSegmentCPP::GetRandomFreePointOnEdge()
+{
+	int MaxAttempts = 8;
+	float DistanceThreshold = (StartRadius * 3.f) * (StartRadius * 3.f);
+	for (int i = 0; i < MaxAttempts; i++)
+	{
+		float Fraction = .25f + (FMath::FRand() / 2.f);
+		float Theta = FMath::Rand() * 360.f;
+		float RadiusAtOffset = EndRadius + ((StartRadius - EndRadius) * Fraction);
+		FVector SegmentVector = GetEndLocation() - GetComponentLocation();
+		FVector RelativeVectorToCenter = SegmentVector * Fraction;
+		FVector RadiusVector = RelativeVectorToCenter.ToOrientationQuat().GetRightVector().GetSafeNormal() * RadiusAtOffset;
+		FVector Point = GetComponentLocation() + RelativeVectorToCenter + RadiusVector;
+		if (ConnectionPoints.ContainsByPredicate([Point, DistanceThreshold](FVector OtherPoint) -> bool { return FVector::DistSquared(OtherPoint, Point) < DistanceThreshold; }))
+		{
+			continue;
+		}
+		if (ConnectedBranches.ContainsByPredicate([Point, DistanceThreshold](UBranchCPP* Branch) -> bool { return FVector::DistSquared(Branch->GetComponentLocation(), Point) < DistanceThreshold; }))
+		{
+			continue;
+		}
+		if (NubsWantingToGrow.ContainsByPredicate([Point, DistanceThreshold](UBranchNubCPP* Nub) -> bool { return FVector::DistSquared(Nub->GetComponentLocation(), Point) < DistanceThreshold; }))
+		{
+			continue;
+		}
+		return Point;
+
+	}
+	return FVector::ZeroVector;
+}
+
+FResourceSet UBranchSegmentCPP::GatherResources()
+{
+	if (!EnsureEarth())
+	{
+		return FResourceSet();
+	}
+	float AccumulatedWater = 0.f;
+	float AccumulatedNutrients = 0.f;
+	AccumulatedWater += Earth->GetWater(GetComponentLocation(), GetEndLocation(), StartRadius, SegmentGatherRate);
+	AccumulatedNutrients += Earth->DrainNutrients(GetComponentLocation(), GetEndLocation(), StartRadius, SegmentGatherRate);
+	
+	for (UBranchCPP* ConnectedBranch : ConnectedBranches)
+	{
+		FResourceSet GatheredFromBranch = ConnectedBranch->GatherResources();
+		AccumulatedWater += GatheredFromBranch.Water;
+		AccumulatedNutrients += GatheredFromBranch.Nutrients;
+	}
+	return FResourceSet(AccumulatedWater, AccumulatedNutrients);
+}
+
+bool UBranchSegmentCPP::EnsureEarth()
+{
+	if (IsValid(Earth))
+	{
+		return true;
+	}
+	if (UWorld* World = GetWorld())
+	{
+		Earth = Cast<AEarthCPP>(UGameplayStatics::GetActorOfClass(World, AEarthCPP::StaticClass()));
+	}
+	return IsValid(Earth);
+}
+
+float UBranchSegmentCPP::GetLength()
+{
+	float AccumulatedLength = 0;
+	for (UBranchCPP* ConnectedBranch : ConnectedBranches)
+	{
+		AccumulatedLength += ConnectedBranch->GetLength();
+	}
+	return AccumulatedLength;
+}
+
+FResourceSet UBranchSegmentCPP::Grow(FResourceSet InputResources)
+{
+	FResourceSet ResultSet = InputResources;
+	for (UBranchNubCPP* Nub : NubsWantingToGrow)
+	{
+		FResourceSet GrowthCost = Nub->GetGrowthCost();
+		if (UResourceSetFunctions::HasResources(ResultSet, GrowthCost))
+		{
+			ResultSet = UResourceSetFunctions::DrainResources(ResultSet, GrowthCost);
+			AddBranchAt(Nub->GetRelativeLocation());
+		}
+		Nub->DestroyComponent();
+	}
+	GenerateConnectionPoints();
+	return ResultSet;
 }
 
 void UBranchSegmentCPP::AddBranchAt(FVector ConnectionPoint)
 {
-	FTransform Transform = FTransform();
-	FVector SpawnLocation = UKismetMathLibrary::ProjectVectorOnToVector(ConnectionPoint, GetSegmentVector());
-	FRotator SpawnRotation = UKismetMathLibrary::FindLookAtRotation(SpawnLocation, ConnectionPoint) + FRotator(0, -90,  0);
-	Transform.SetLocation(SpawnLocation);
+	FVector SpawnLocation = UKismetMathLibrary::FindClosestPointOnLine(ConnectionPoint, GetComponentLocation(), GetEndLocation() - GetComponentLocation());
+	FVector VectorFromSpawnPointToConnectionPoint = (ConnectionPoint - SpawnLocation);
+	FRotator SpawnRotation = VectorFromSpawnPointToConnectionPoint.ToOrientationRotator();
 
 	UBranchCPP* NewBranch = NewObject<UBranchCPP>(this, UBranchCPP::StaticClass(), FName(FString::Printf(TEXT("Branch %d"), ConnectedBranches.Num())));
 	ConnectedBranches.Add(NewBranch);
 	NewBranch->RegisterComponent();
-	NewBranch->AttachToComponent(this, FAttachmentTransformRules::KeepRelativeTransform);
-	NewBranch->SetRelativeLocation(SpawnLocation);
-	NewBranch->SetRelativeRotation(SpawnRotation);
+	NewBranch->SetWorldLocation(SpawnLocation);
+	NewBranch->AttachToComponent(this, FAttachmentTransformRules::KeepWorldTransform);
+	NewBranch->SetWorldRotation(SpawnRotation);
 
 	GenerateConnectionPoints();
 }
+
+void UBranchSegmentCPP::AddBranch()
+{
+	if (ConnectionPoints.IsEmpty())
+	{
+		return;
+	}
+	AddBranchAt(ConnectionPoints[FMath::RandRange(0, ConnectionPoints.Num() - 1)]);
+}
+

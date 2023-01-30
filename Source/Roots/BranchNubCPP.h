@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "FResourceSet.h"
 #include "BranchNubCPP.generated.h"
 
 UCLASS()
@@ -25,4 +26,7 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 		float StartRadius;
+
+	UFUNCTION(BlueprintCallable)
+		FResourceSet GetGrowthCost();
 };

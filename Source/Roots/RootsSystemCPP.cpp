@@ -4,6 +4,7 @@
 #include "RootsSystemCPP.h"
 #include "BranchCPP.h"
 #include "Kismet/KismetMathLibrary.h"
+#include "RootsGameState.h"
 
 // Sets default values
 ARootsSystemCPP::ARootsSystemCPP()
@@ -15,6 +16,7 @@ ARootsSystemCPP::ARootsSystemCPP()
 
 	RootComponent = CreateDefaultSubobject<USceneComponent>("RootComponent");
 	RootBranch = CreateDefaultSubobject<UBranchCPP>("RootBranch");
+	StoredResources = CreateDefaultSubobject<UResourceContainer>("StoredResources");
 	RootBranch->SetupAttachment(RootComponent);
 }
 
@@ -22,12 +24,29 @@ void ARootsSystemCPP::PostInitProperties()
 {
 	Super::PostInitProperties();
 	RootBranch->SetWorldRotation(FRotator(180, 0, 0));
+	UBranchSegmentCPP* FirstSegment = RootBranch->Segments.IsEmpty() ? nullptr : RootBranch->Segments[0];
+	if (IsValid(FirstSegment))
+	{
+		FirstSegment->StartRadius = 70;
+		FirstSegment->EndRadius = FirstSegment->StartRadius * 0.8;
+		FirstSegment->Length = 230;
+	}
 }
 
 // Called when the game starts or when spawned
 void ARootsSystemCPP::BeginPlay()
 {
 	Super::BeginPlay();
+	if (UWorld* World = GetWorld())
+	{
+		ARootsGameState* const GameState = World->GetGameState<ARootsGameState>();
+		if (IsValid(GameState))
+		{
+			TArray<ARootsSystemCPP*> InputRoots;
+			InputRoots.Add(this);
+			GameState->AddRootsSystems(InputRoots);
+		}
+	}
 }
 
 // Called every frame
@@ -37,19 +56,16 @@ void ARootsSystemCPP::Tick(float DeltaTime)
 
 }
 
-void ARootsSystemCPP::Grow(float NutrientsIn)
+void ARootsSystemCPP::Grow()
 {
-	//
+	StoredResources->SetResources(RootBranch->Grow(StoredResources->Resources));
 }
 
-float ARootsSystemCPP::GatherWater()
+FResourceSet ARootsSystemCPP::GatherResources()
 {
-	return 0.0f;
-}
-
-float ARootsSystemCPP::GatherNutrients()
-{
-	return 0.0f;
+	FResourceSet Result = RootBranch->GatherResources();
+	StoredResources->AddResources(Result);
+	return Result;
 }
 
 void ARootsSystemCPP::PreEditChange(FProperty* PropertyAboutToChange)

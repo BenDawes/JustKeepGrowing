@@ -2,6 +2,7 @@
 
 
 #include "EarthCPP.h"
+#include "NutrientPocketCPP.h"
 
 // Sets default values
 AEarthCPP::AEarthCPP()
@@ -25,7 +26,7 @@ void AEarthCPP::Tick(float DeltaTime)
 
 }
 
-float AEarthCPP::GetMoisture(FVector AtLocation)
+float AEarthCPP::GetWater(FVector StartLocation, FVector EndLocation, float Radius, float Rate)
 {
 	// TODO Returns a %ge from 0 to 1
 	// Sample surface moisture texture and scale by depth
@@ -39,11 +40,26 @@ void AEarthCPP::UpdateAllMoisture(float Temperature, float Rainfall)
 	// Multiply by a porousness texture
 }
 
-float AEarthCPP::DrainNutrients(FVector AtLocation)
+float AEarthCPP::DrainNutrients(FVector StartLocation, FVector EndLocation, float Radius, float Rate)
 {
 	// TODO Get nutrient actors this location is inside of
 	// Reduce them by some amount, return that amount
 	// They get destroyed if reduced to 0
-	return 0.0f;
+	float AccumulatedNutrients = 0;
+	if (UWorld* World = GetWorld())
+	{
+		TArray<FHitResult> OutHits;
+		World->SweepMultiByChannel(OutHits, StartLocation, EndLocation, FQuat::Identity, ECollisionChannel::ECC_Camera, FCollisionShape::MakeSphere(Radius));
+		for (FHitResult Hit : OutHits)
+		{
+			ANutrientPocketCPP* AsPocket = Cast<ANutrientPocketCPP>(Hit.GetActor());
+			if (!IsValid(AsPocket))
+			{
+				continue;
+			}
+			AccumulatedNutrients += AsPocket->DrainNutrients(Rate);
+		}
+	}
+	return AccumulatedNutrients;
 }
 

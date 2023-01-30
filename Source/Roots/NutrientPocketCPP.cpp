@@ -8,7 +8,11 @@ ANutrientPocketCPP::ANutrientPocketCPP()
 {
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
-
+	RootComponent = CreateDefaultSubobject<USceneComponent>("RootComponent");
+	StaticMesh = CreateDefaultSubobject<UStaticMeshComponent>("StaticMesh");
+	StaticMesh->SetupAttachment(RootComponent);
+	StartingNutrients = 500;
+	RemainingNutrients = 500;
 }
 
 // Called when the game starts or when spawned
@@ -23,5 +27,14 @@ void ANutrientPocketCPP::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+}
+
+float ANutrientPocketCPP::DrainNutrients(float Rate)
+{
+	float Result = FMath::Clamp(Rate, 0, RemainingNutrients);
+	RemainingNutrients -= Rate;
+	float NewScale = (RemainingNutrients + StartingNutrients) / (StartingNutrients * 2);
+	StaticMesh->SetRelativeScale3D(FVector(NewScale));
+	return Result;
 }
 

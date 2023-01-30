@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "BranchCPP.h"
+#include "ResourceContainer.h"
 #include "RootsSystemCPP.generated.h"
 
 UCLASS()
@@ -28,18 +29,19 @@ public:
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& e) override;
 	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+		UResourceContainer* StoredResources;
+
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	UBranchCPP* RootBranch;
 
 	UFUNCTION(BlueprintCallable)
-	void Grow(float NutrientsIn);
+	void Grow();
 
 	UFUNCTION(BlueprintCallable)
-		float GatherWater();
+		FResourceSet GatherResources();
 
-	UFUNCTION(BlueprintCallable)
-		float GatherNutrients();
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 		float Radius;

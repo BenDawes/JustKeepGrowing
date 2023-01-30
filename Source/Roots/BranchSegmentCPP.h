@@ -6,6 +6,7 @@
 #include "GameFramework/Actor.h"
 #include "Components/DynamicMeshComponent.h"
 #include "Components/ChildActorComponent.h"
+#include "EarthCPP.h"
 #include "BranchSegmentCPP.generated.h"
 
 class UBranchCPP;
@@ -51,13 +52,40 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 		TArray<FVector> ConnectionPoints;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+		TArray<UBranchNubCPP*> NubsWantingToGrow;
+
 	UFUNCTION(BlueprintCallable)
 		void AddBranchAt(FVector ConnectionPointWorld);
+
+	UFUNCTION(BlueprintCallable)
+		void AddBranch();
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 		TArray<UBranchCPP*> ConnectedBranches;
 
 	UFUNCTION(BlueprintCallable)
-		FVector GetSegmentVector();
+		FVector GetEndLocation();
 
+	UFUNCTION(BlueprintCallable)
+		FVector GetRandomFreePointOnEdge();
+
+	UFUNCTION(BlueprintCallable)
+		FResourceSet GatherResources();
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+		AEarthCPP* Earth;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+		float SegmentGatherRate = 10;
+
+	UFUNCTION(BlueprintCallable)
+		bool EnsureEarth();
+
+	UFUNCTION(BlueprintCallable)
+		float GetLength();
+
+	UFUNCTION(BlueprintCallable)
+		FResourceSet Grow(FResourceSet InputResources);
 };
+
