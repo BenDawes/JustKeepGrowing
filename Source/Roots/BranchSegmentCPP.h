@@ -31,6 +31,12 @@ public:
 	// Called every frame
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+		UBranchNubCPP* Nub;
+
+	UFUNCTION(BlueprintCallable)
+		void UpdateNub();
+
 	UPROPERTY()
 		UBranchCPP* ParentBranch;
 
@@ -42,6 +48,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 		float Length;
+
+	UFUNCTION(BlueprintCallable)
+		void SetLength(float NewLength);
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 		FRotator Direction;

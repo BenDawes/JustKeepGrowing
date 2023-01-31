@@ -10,9 +10,7 @@ UBranchCPP::UBranchCPP()
 {
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryComponentTick.bCanEverTick = true;
-	BaseSegment = CreateDefaultSubobject<UBranchSegmentCPP>("BaseSegment");
-	Segments.Add(BaseSegment);
-	Nub = CreateDefaultSubobject<UBranchNubCPP>(FName("Nub"));
+	AddNewSegmentConstructor(FRotator(90,0,0));
 }
 
 
@@ -24,8 +22,11 @@ void UBranchCPP::PostInitProperties()
 void UBranchCPP::OnRegister()
 {
 	Super::OnRegister();
-	BaseSegment->AttachToComponent(this, FAttachmentTransformRules::SnapToTargetIncludingScale);
 	CleanSegments();
+	if (!Segments.IsEmpty())
+	{
+		Segments[0]->AttachToComponent(this, FAttachmentTransformRules::SnapToTargetIncludingScale);
+	}
 	for (int i = 1; i < Segments.Num(); i++)
 	{
 		UBranchSegmentCPP* Segment = Segments[i];
@@ -35,12 +36,8 @@ void UBranchCPP::OnRegister()
 		Segment->AttachToComponent(AttachedToSegment, FAttachmentTransformRules::KeepWorldTransform);
 		Segment->SetRelativeLocation(AttachedToSegment->Length * FVector(0, 0, 1));
 	}
-	if (IsValid(Nub))
-	{
-		Nub->AttachToComponent(Segments.Last(), FAttachmentTransformRules::SnapToTargetIncludingScale);
-		Nub->SetRelativeLocation((Segments.Last()->Length + 10) * FVector(0, 0, 1));
-	}
 }
+
 
 // Called when the game starts or when spawned
 void UBranchCPP::BeginPlay()
@@ -83,7 +80,7 @@ void UBranchCPP::CleanSegments()
 
 FRotator UBranchCPP::GetGrowDirection()
 {
-	if (!IsValid(Nub) || Segments.IsEmpty())
+	if (Segments.IsEmpty())
 	{
 		return GetComponentRotation();
 	}
@@ -91,7 +88,7 @@ FRotator UBranchCPP::GetGrowDirection()
 	RandomVariance.Yaw = (FMath::FRand() * (MaxVarianceAngle * 2)) - MaxVarianceAngle;
 	RandomVariance.Pitch = (FMath::FRand() * (MaxVarianceAngle * 2)) - MaxVarianceAngle;
 	RandomVariance.Roll = (FMath::FRand() * (MaxVarianceAngle * 2)) - MaxVarianceAngle;
-	return  UKismetMathLibrary::FindLookAtRotation(Segments.Last()->GetEndLocation(), Nub->GetComponentLocation()) - FRotator(90, 0, 0) + RandomVariance;
+	return  UKismetMathLibrary::FindLookAtRotation(Segments.Last()->GetEndLocation(), Segments.Last()->GetComponentLocation()) - FRotator(90, 0, 0) + RandomVariance;
 }
 
 FResourceSet UBranchCPP::GatherResources()
@@ -194,7 +191,7 @@ void UBranchCPP::GrowSelf()
 		if (Segment->GetSegmentLength() < MaxSegmentLength)
 		{
 			float NewLength = FMath::Clamp(Segment->Length * 1.1f, 0, MaxSegmentLength);
-			Segment->Length = NewLength;
+			Segment->SetLength(NewLength);
 			if (i == 0)
 			{
 				Segment->StartRadius = Segment->StartRadius * 1.1;
@@ -206,10 +203,6 @@ void UBranchCPP::GrowSelf()
 		{
 			Segments[i + 1]->AddWorldOffset(GrowthOffsetAtEnd);
 			Segments[i + 1]->StartRadius = Segment->EndRadius;
-		}
-		if (i == Segments.Num() - 1 && IsValid(Nub))
-		{
-			Nub->AddWorldOffset(GrowthOffsetAtEnd);
 		}
 	}
 }
@@ -232,7 +225,6 @@ UBranchSegmentCPP* UBranchCPP::AddNewSegmentConstructor(FRotator Direction)
 		return nullptr;
 	}
 	UBranchSegmentCPP* NewSegment = CreateDefaultSubobject<UBranchSegmentCPP>(FName(FString::Printf(TEXT("Segment%d"), Segments.Num())));
-	NewSegment->RegisterComponent();
 	NewSegment->Length = MaxSegmentLength / 2;
 	FRotator RandomVariance;
 	RandomVariance.Yaw = (FMath::FRand() * (MaxVarianceAngle * 2)) - MaxVarianceAngle;
@@ -253,7 +245,7 @@ UBranchSegmentCPP* UBranchCPP::AddNewSegment(FRotator Direction)
 	UBranchSegmentCPP* NewSegment = NewObject<UBranchSegmentCPP>(this, UBranchSegmentCPP::StaticClass(), FName(FString::Printf(TEXT("Segment%d"), Segments.Num())));
 	NewSegment->RegisterComponent();
 	FVector NewLocation = FVector();
-	NewSegment->Length = MaxSegmentLength / 2;
+	NewSegment->SetLength(MaxSegmentLength / 2);
 	if (Segments.Num() > 0)
 	{
 		UBranchSegmentCPP* AttachedToSegment = Segments.Last();
@@ -264,7 +256,6 @@ UBranchSegmentCPP* UBranchCPP::AddNewSegment(FRotator Direction)
 	}
 	else
 	{
-		BaseSegment = NewSegment;
 		NewSegment->AttachToComponent(this, FAttachmentTransformRules::SnapToTargetIncludingScale);
 	}
 	FRotator RandomVariance;
@@ -273,15 +264,7 @@ UBranchSegmentCPP* UBranchCPP::AddNewSegment(FRotator Direction)
 	RandomVariance.Roll = (FMath::FRand() * (MaxVarianceAngle * 2)) - MaxVarianceAngle;
 	NewSegment->AddLocalRotation(FQuat::MakeFromRotator(Direction + RandomVariance));
 	NewSegment->SetRelativeLocation(NewLocation);
-	if (IsValid(Nub))
-	{
-		Nub->AttachToComponent(NewSegment, FAttachmentTransformRules::SnapToTargetIncludingScale);
-		Nub->SetRelativeLocation((NewSegment->Length + 10) * FVector(0, 0, 1));;
-		if (Segments.Num() == MaxNSegments)
-		{
-			Nub->DestroyComponent();
-		}
-	}
+	NewSegment->UpdateNub();
 	Segments.Add(NewSegment);
 	return NewSegment;
 }

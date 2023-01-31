@@ -24,13 +24,10 @@ protected:
 	virtual void PostInitProperties() override;
 	virtual void OnRegister() override;
 
+
 public:	
 	// Called every frame
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
-
-	
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	UBranchSegmentCPP* BaseSegment;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 		TArray<UBranchSegmentCPP*> Segments;
@@ -46,9 +43,6 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 		void CleanSegments();
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-		UBranchNubCPP* Nub;
 
 	UFUNCTION(BlueprintCallable)
 		FRotator GetGrowDirection();

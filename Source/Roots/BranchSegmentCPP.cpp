@@ -18,6 +18,7 @@ UBranchSegmentCPP::UBranchSegmentCPP()
 	StartRadius = 20;
 	EndRadius = 16;
 	Length = 120;
+	Nub = CreateDefaultSubobject<UBranchNubCPP>(FName("Nub"));
 }
 
 
@@ -30,7 +31,12 @@ void UBranchSegmentCPP::PostInitProperties()
 void UBranchSegmentCPP::OnRegister()
 {
 	Super::OnRegister();
+	if (IsValid(Nub))
+	{
+		Nub->AttachToComponent(this, FAttachmentTransformRules::SnapToTargetIncludingScale);
+	}
 	GenerateConnectionPoints();
+	UpdateNub();
 }
 
 // Called when the game starts or when spawned
@@ -44,6 +50,24 @@ void UBranchSegmentCPP::TickComponent(float DeltaTime, ELevelTick TickType, FAct
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
+}
+
+void UBranchSegmentCPP::UpdateNub()
+{
+	if (!IsValid(Nub))
+	{
+		return;
+	}
+	Nub->AttachToComponent(this, FAttachmentTransformRules::SnapToTargetIncludingScale);
+	Nub->SetWorldLocation(GetEndLocation());
+	Nub->SetWorldRotation(GetComponentRotation());
+	Nub->AddLocalOffset(FVector(0, 0, 10));
+}
+
+void UBranchSegmentCPP::SetLength(float NewLength)
+{
+	Length = NewLength;
+	UpdateNub();
 }
 
 void UBranchSegmentCPP::GenerateConnectionPoints()
@@ -74,7 +98,7 @@ void UBranchSegmentCPP::GenerateConnectionPoints()
 FVector UBranchSegmentCPP::GetEndLocation()
 {
 	FRotator Rot = GetComponentRotation();
-	return GetComponentLocation() + Rot.RotateVector(FVector(0, 0, 1)) * Length;
+	return GetComponentLocation() + Rot.RotateVector(FVector(0, 0, 1)) * Length; 
 }
 
 FVector UBranchSegmentCPP::GetRandomFreePointOnEdge()
@@ -159,11 +183,11 @@ void UBranchSegmentCPP::CleanBranches()
 void UBranchSegmentCPP::CleanNubs()
 {
 	TArray<UBranchNubCPP*> NewNubs;
-	for (UBranchNubCPP* Nub : NubsWantingToGrow)
+	for (UBranchNubCPP* GrowthNub : NubsWantingToGrow)
 	{
-		if (IsValid(Nub))
+		if (IsValid(GrowthNub))
 		{
-			NewNubs.Add(Nub);
+			NewNubs.Add(GrowthNub);
 		}
 	}
 	NubsWantingToGrow = NewNubs;
@@ -191,15 +215,15 @@ FResourceSet UBranchSegmentCPP::Grow(FResourceSet InputResources)
 	{
 		ResultSet = Branch->Grow(ResultSet);
 	}
-	for (UBranchNubCPP* Nub : NubsWantingToGrow)
+	for (UBranchNubCPP* GrowthNub : NubsWantingToGrow)
 	{
-		FResourceSet GrowthCost = Nub->GetGrowthCost();
+		FResourceSet GrowthCost = GrowthNub->GetGrowthCost();
 		if (UResourceSetFunctions::HasResources(ResultSet, GrowthCost))
 		{
 			ResultSet = UResourceSetFunctions::DrainResources(ResultSet, GrowthCost);
-			AddBranchAt(Nub->GetRelativeLocation());
+			AddBranchAt(GrowthNub->GetRelativeLocation());
 		}
-		Nub->DestroyComponent();
+		GrowthNub->DestroyComponent();
 	}
 	GenerateConnectionPoints();
 	return ResultSet;
