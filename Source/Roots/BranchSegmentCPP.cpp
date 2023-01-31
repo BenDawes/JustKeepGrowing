@@ -30,6 +30,7 @@ void UBranchSegmentCPP::PostInitProperties()
 void UBranchSegmentCPP::OnRegister()
 {
 	Super::OnRegister();
+	GenerateConnectionPoints();
 }
 
 // Called when the game starts or when spawned
@@ -78,6 +79,8 @@ FVector UBranchSegmentCPP::GetEndLocation()
 
 FVector UBranchSegmentCPP::GetRandomFreePointOnEdge()
 {
+	CleanBranches();
+	CleanNubs();
 	int MaxAttempts = 8;
 	float DistanceThreshold = (StartRadius * 3.f) * (StartRadius * 3.f);
 	for (int i = 0; i < MaxAttempts; i++)
@@ -140,7 +143,33 @@ bool UBranchSegmentCPP::EnsureEarth()
 	return IsValid(Earth);
 }
 
-float UBranchSegmentCPP::GetLength()
+void UBranchSegmentCPP::CleanBranches()
+{
+	TArray<UBranchCPP*> NewBranches;
+	for (UBranchCPP* Branch : ConnectedBranches)
+	{
+		if (IsValid(Branch))
+		{
+			NewBranches.Add(Branch);
+		}
+	}
+	ConnectedBranches = NewBranches;
+}
+
+void UBranchSegmentCPP::CleanNubs()
+{
+	TArray<UBranchNubCPP*> NewNubs;
+	for (UBranchNubCPP* Nub : NubsWantingToGrow)
+	{
+		if (IsValid(Nub))
+		{
+			NewNubs.Add(Nub);
+		}
+	}
+	NubsWantingToGrow = NewNubs;
+}
+
+float UBranchSegmentCPP::GetSubLength()
 {
 	float AccumulatedLength = 0;
 	for (UBranchCPP* ConnectedBranch : ConnectedBranches)
@@ -150,9 +179,18 @@ float UBranchSegmentCPP::GetLength()
 	return AccumulatedLength;
 }
 
+float UBranchSegmentCPP::GetSegmentLength()
+{
+	return Length;
+}
+
 FResourceSet UBranchSegmentCPP::Grow(FResourceSet InputResources)
 {
 	FResourceSet ResultSet = InputResources;
+	for (UBranchCPP* Branch : ConnectedBranches)
+	{
+		ResultSet = Branch->Grow(ResultSet);
+	}
 	for (UBranchNubCPP* Nub : NubsWantingToGrow)
 	{
 		FResourceSet GrowthCost = Nub->GetGrowthCost();
@@ -171,14 +209,18 @@ void UBranchSegmentCPP::AddBranchAt(FVector ConnectionPoint)
 {
 	FVector SpawnLocation = UKismetMathLibrary::FindClosestPointOnLine(ConnectionPoint, GetComponentLocation(), GetEndLocation() - GetComponentLocation());
 	FVector VectorFromSpawnPointToConnectionPoint = (ConnectionPoint - SpawnLocation);
-	FRotator SpawnRotation = VectorFromSpawnPointToConnectionPoint.ToOrientationRotator();
+	FRotator RandomVariance;
+	RandomVariance.Yaw = (FMath::FRand() * (MaxVarianceAngle * 2)) - MaxVarianceAngle;
+	RandomVariance.Pitch = (FMath::FRand() * (MaxVarianceAngle * 2)) - MaxVarianceAngle;
+	RandomVariance.Roll = (FMath::FRand() * (MaxVarianceAngle * 2)) - MaxVarianceAngle;
+	FRotator SpawnRotation = UKismetMathLibrary::FindLookAtRotation(SpawnLocation, ConnectionPoint) - FRotator(90, 0, 0) + RandomVariance;
 
-	UBranchCPP* NewBranch = NewObject<UBranchCPP>(this, UBranchCPP::StaticClass(), FName(FString::Printf(TEXT("Branch %d"), ConnectedBranches.Num())));
+	UBranchCPP* NewBranch = NewObject<UBranchCPP>(this, UBranchCPP::StaticClass(), FName(FString::Printf(TEXT("Branch%d"), ConnectedBranches.Num())));
 	ConnectedBranches.Add(NewBranch);
 	NewBranch->RegisterComponent();
 	NewBranch->SetWorldLocation(SpawnLocation);
-	NewBranch->AttachToComponent(this, FAttachmentTransformRules::KeepWorldTransform);
 	NewBranch->SetWorldRotation(SpawnRotation);
+	NewBranch->AttachToComponent(this, FAttachmentTransformRules::KeepWorldTransform);
 
 	GenerateConnectionPoints();
 }

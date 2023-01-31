@@ -9,7 +9,7 @@
 #include "FResourceSet.h"
 #include "BranchCPP.generated.h"
 
-UCLASS()
+UCLASS(ClassGroup = "Roots System", meta = (BlueprintSpawnableComponent))
 class ROOTS_API UBranchCPP : public USceneComponent
 {
 	GENERATED_BODY()
@@ -42,6 +42,9 @@ public:
 		UBranchSegmentCPP* AddNewSegment(FRotator Direction);
 
 	UFUNCTION(BlueprintCallable)
+		UBranchSegmentCPP* AddNewSegmentConstructor(FRotator Direction);
+
+	UFUNCTION(BlueprintCallable)
 		void CleanSegments();
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
@@ -55,6 +58,8 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 		float GetLength();
+	UFUNCTION(BlueprintCallable)
+		TArray<UBranchSegmentCPP*> GetAllSubSegments();
 
 	UFUNCTION(BlueprintCallable)
 		FResourceSet Grow(FResourceSet InputResources);
@@ -80,4 +85,7 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 		float MaxVarianceAngle = 50.f;
+
+	UFUNCTION(BlueprintCallable)
+		UBranchSegmentCPP* GetRandomSubSegment();
 };

@@ -12,7 +12,7 @@
 class UBranchCPP;
 class UBranchNubCPP;
 
-UCLASS()
+UCLASS(ClassGroup = "Roots System", meta = (BlueprintSpawnableComponent))
 class ROOTS_API UBranchSegmentCPP : public USceneComponent
 {
 	GENERATED_BODY()
@@ -81,11 +81,21 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 		bool EnsureEarth();
+	UFUNCTION(BlueprintCallable)
+		void CleanBranches();
+	UFUNCTION(BlueprintCallable)
+		void CleanNubs();
+	UFUNCTION(BlueprintCallable)
+		float GetSubLength();
 
 	UFUNCTION(BlueprintCallable)
-		float GetLength();
+		float GetSegmentLength();
 
 	UFUNCTION(BlueprintCallable)
 		FResourceSet Grow(FResourceSet InputResources);
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+
+		float MaxVarianceAngle = 50.f;
 };
 

@@ -2,6 +2,7 @@
 
 
 #include "BranchNubCPP.h"
+#include "RootsDeveloperSettings.h"
 
 // Sets default values
 UBranchNubCPP::UBranchNubCPP()
@@ -9,6 +10,16 @@ UBranchNubCPP::UBranchNubCPP()
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryComponentTick.bCanEverTick = false;
 	StartRadius = 10;
+
+	StaticMesh = CreateDefaultSubobject<UStaticMeshComponent>("StaticMesh");
+	const URootsDeveloperSettings* DevSettings = GetDefault<URootsDeveloperSettings>(); // Access via CDO
+	StaticMesh->SetStaticMesh(DevSettings->NubMeshPath.LoadSynchronous());
+}
+
+void UBranchNubCPP::OnRegister()
+{
+	Super::OnRegister();
+	StaticMesh->AttachToComponent(this, FAttachmentTransformRules::SnapToTargetIncludingScale);
 }
 
 // Called when the game starts or when spawned
