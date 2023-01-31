@@ -31,6 +31,8 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 		TArray<UBranchSegmentCPP*> Segments;
+	UFUNCTION(BlueprintCallable)
+		void AlignSegments();
 
 	UFUNCTION(BlueprintCallable)
 		void GenerateConnectionPoints();

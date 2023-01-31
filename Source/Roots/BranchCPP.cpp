@@ -10,7 +10,6 @@ UBranchCPP::UBranchCPP()
 {
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryComponentTick.bCanEverTick = true;
-	AddNewSegmentConstructor(FRotator(90,0,0));
 }
 
 
@@ -23,18 +22,13 @@ void UBranchCPP::OnRegister()
 {
 	Super::OnRegister();
 	CleanSegments();
-	if (!Segments.IsEmpty())
+	if (Segments.Num() > 0)
 	{
 		Segments[0]->AttachToComponent(this, FAttachmentTransformRules::SnapToTargetIncludingScale);
 	}
-	for (int i = 1; i < Segments.Num(); i++)
+	for (int i = 0; i < Segments.Num() - 1; i++)
 	{
-		UBranchSegmentCPP* Segment = Segments[i];
-		UBranchSegmentCPP* AttachedToSegment = Segments[i - 1];
-		Segment->StartRadius = AttachedToSegment->EndRadius;
-		Segment->EndRadius = Segment->StartRadius * 0.8;
-		Segment->AttachToComponent(AttachedToSegment, FAttachmentTransformRules::KeepWorldTransform);
-		Segment->SetRelativeLocation(AttachedToSegment->Length * FVector(0, 0, 1));
+		Segments[i + 1]->AttachToComponent(Segments[i], FAttachmentTransformRules::SnapToTargetIncludingScale);
 	}
 }
 
@@ -53,14 +47,40 @@ void UBranchCPP::TickComponent(float DeltaTime, ELevelTick TickType, FActorCompo
 
 }
 
-void UBranchCPP::GenerateConnectionPoints()
+void UBranchCPP::AlignSegments()
 {
+	CleanSegments();
+	if (!Segments.IsEmpty())
+	{
+		FVector CurrentWorldLocation = GetComponentLocation();
+		Segments[0]->SetWorldLocation(CurrentWorldLocation);
+		Segments[0]->SetWorldRotation(Segments[0]->GrowthDirection);
+		for (int i = 1; i < Segments.Num(); i++)
+		{
+			UBranchSegmentCPP* PreviousSegment = Segments[i - 1];
+			FVector PreviousOffset = PreviousSegment->Length * (PreviousSegment->GrowthDirection.RotateVector(FVector(0, 0, 1)));
+			UBranchSegmentCPP* Segment = Segments[i];
+			CurrentWorldLocation += PreviousOffset;
+			Segment->SetWorldLocation(CurrentWorldLocation);
+			Segment->SetWorldRotation(Segment->GrowthDirection);
+		}
+	}
 	for (UBranchSegmentCPP* Segment : Segments)
 	{
-		if (IsValid(Segment))
+		for (UBranchCPP* Branch : Segment->ConnectedBranches)
 		{
-			Segment->GenerateConnectionPoints();
+			Branch->AlignSegments();
 		}
+	}
+
+}
+
+void UBranchCPP::GenerateConnectionPoints()
+{
+	CleanSegments();
+	for (UBranchSegmentCPP* Segment : Segments)
+	{
+		Segment->GenerateConnectionPoints();
 	}
 }
 
@@ -84,11 +104,7 @@ FRotator UBranchCPP::GetGrowDirection()
 	{
 		return GetComponentRotation();
 	}
-	FRotator RandomVariance;
-	RandomVariance.Yaw = (FMath::FRand() * (MaxVarianceAngle * 2)) - MaxVarianceAngle;
-	RandomVariance.Pitch = (FMath::FRand() * (MaxVarianceAngle * 2)) - MaxVarianceAngle;
-	RandomVariance.Roll = (FMath::FRand() * (MaxVarianceAngle * 2)) - MaxVarianceAngle;
-	return  UKismetMathLibrary::FindLookAtRotation(Segments.Last()->GetEndLocation(), Segments.Last()->GetComponentLocation()) - FRotator(90, 0, 0) + RandomVariance;
+	return  Segments.Last()->GrowthDirection;
 }
 
 FResourceSet UBranchCPP::GatherResources()
@@ -229,8 +245,7 @@ UBranchSegmentCPP* UBranchCPP::AddNewSegmentConstructor(FRotator Direction)
 	FRotator RandomVariance;
 	RandomVariance.Yaw = (FMath::FRand() * (MaxVarianceAngle * 2)) - MaxVarianceAngle;
 	RandomVariance.Pitch = (FMath::FRand() * (MaxVarianceAngle * 2)) - MaxVarianceAngle;
-	RandomVariance.Roll = (FMath::FRand() * (MaxVarianceAngle * 2)) - MaxVarianceAngle;
-	NewSegment->AddLocalRotation(FQuat::MakeFromRotator(Direction + RandomVariance));
+	NewSegment->GrowthDirection = Direction + RandomVariance;
 	Segments.Add(NewSegment);
 	return NewSegment;
 }
@@ -261,10 +276,10 @@ UBranchSegmentCPP* UBranchCPP::AddNewSegment(FRotator Direction)
 	FRotator RandomVariance;
 	RandomVariance.Yaw = (FMath::FRand() * (MaxVarianceAngle * 2)) - MaxVarianceAngle;
 	RandomVariance.Pitch = (FMath::FRand() * (MaxVarianceAngle * 2)) - MaxVarianceAngle;
-	RandomVariance.Roll = (FMath::FRand() * (MaxVarianceAngle * 2)) - MaxVarianceAngle;
-	NewSegment->AddLocalRotation(FQuat::MakeFromRotator(Direction + RandomVariance));
-	NewSegment->SetRelativeLocation(NewLocation);
-	NewSegment->UpdateNub();
+	FRotator NewDirection = Direction + RandomVariance;
+	NewDirection = NewDirection.Clamp();
+	// NewDirection.Yaw -= FMath::FRand() * (NewDirection.Yaw - 180);
+	NewSegment->GrowthDirection = NewDirection;
 	Segments.Add(NewSegment);
 	return NewSegment;
 }

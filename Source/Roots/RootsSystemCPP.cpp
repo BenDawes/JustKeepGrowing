@@ -20,16 +20,16 @@ ARootsSystemCPP::ARootsSystemCPP()
 	RootBranch->SetupAttachment(RootComponent);
 }
 
-void ARootsSystemCPP::PostInitProperties()
+void ARootsSystemCPP::PostInitializeComponents()
 {
-	Super::PostInitProperties();
-	RootBranch->SetWorldRotation(FRotator(180, 0, 0));
+	Super::PostInitializeComponents();
+	RootBranch->AddNewSegment(FRotator(180, 0, 0));
 	UBranchSegmentCPP* FirstSegment = RootBranch->Segments.IsEmpty() ? nullptr : RootBranch->Segments[0];
 	if (IsValid(FirstSegment))
 	{
 		FirstSegment->StartRadius = 70;
 		FirstSegment->EndRadius = FirstSegment->StartRadius * 0.8;
-		FirstSegment->Length = 230;
+		FirstSegment->SetLength(230);
 	}
 }
 

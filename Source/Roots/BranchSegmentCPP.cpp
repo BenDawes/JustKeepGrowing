@@ -7,6 +7,7 @@
 #include "BranchCPP.h"
 #include <Kismet/GameplayStatics.h>
 #include "ResourceSetFunctions.h"
+#include "RootsDeveloperSettings.h"
 
 
 // Sets default values
@@ -18,7 +19,10 @@ UBranchSegmentCPP::UBranchSegmentCPP()
 	StartRadius = 20;
 	EndRadius = 16;
 	Length = 120;
-	Nub = CreateDefaultSubobject<UBranchNubCPP>(FName("Nub"));
+
+	PointerMesh = CreateDefaultSubobject<UStaticMeshComponent>("PointerMesh");
+	const URootsDeveloperSettings* DevSettings = GetDefault<URootsDeveloperSettings>(); // Access via CDO
+	PointerMesh->SetStaticMesh(DevSettings->NubMeshPath.LoadSynchronous());
 }
 
 
@@ -31,12 +35,28 @@ void UBranchSegmentCPP::PostInitProperties()
 void UBranchSegmentCPP::OnRegister()
 {
 	Super::OnRegister();
-	if (IsValid(Nub))
-	{
-		Nub->AttachToComponent(this, FAttachmentTransformRules::SnapToTargetIncludingScale);
-	}
 	GenerateConnectionPoints();
-	UpdateNub();
+	PointerMesh->AttachToComponent(this, FAttachmentTransformRules::SnapToTargetIncludingScale);
+	PointerMesh->SetVisibility(false);
+}
+
+void UBranchSegmentCPP::ShowPointer()
+{
+	if (IsValid(PointerMesh))
+	{
+		PointerMesh->SetVisibility(true);
+		PointerMesh->SetRelativeLocation(FVector(0,0,Length + 10));
+		PointerMesh->SetWorldRotation(GetComponentRotation());
+	}
+}
+
+void UBranchSegmentCPP::HidePointer()
+{
+	if (IsValid(PointerMesh))
+	{
+		PointerMesh->SetVisibility(false);
+	}
+
 }
 
 // Called when the game starts or when spawned
@@ -49,25 +69,12 @@ void UBranchSegmentCPP::BeginPlay()
 void UBranchSegmentCPP::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
-
-}
-
-void UBranchSegmentCPP::UpdateNub()
-{
-	if (!IsValid(Nub))
-	{
-		return;
-	}
-	Nub->AttachToComponent(this, FAttachmentTransformRules::SnapToTargetIncludingScale);
-	Nub->SetWorldLocation(GetEndLocation());
-	Nub->SetWorldRotation(GetComponentRotation());
-	Nub->AddLocalOffset(FVector(0, 0, 10));
+	ShowPointer();
 }
 
 void UBranchSegmentCPP::SetLength(float NewLength)
 {
 	Length = NewLength;
-	UpdateNub();
 }
 
 void UBranchSegmentCPP::GenerateConnectionPoints()
@@ -93,6 +100,10 @@ void UBranchSegmentCPP::GenerateConnectionPoints()
 	{
 		ConnectionPoints.Add(CandidatePoint);
 	}
+	for (UBranchCPP* Branch : ConnectedBranches)
+	{
+		Branch->GenerateConnectionPoints();
+	}
 }
 
 FVector UBranchSegmentCPP::GetEndLocation()
@@ -114,7 +125,7 @@ FVector UBranchSegmentCPP::GetRandomFreePointOnEdge()
 		float RadiusAtOffset = EndRadius + ((StartRadius - EndRadius) * Fraction);
 		FVector SegmentVector = GetEndLocation() - GetComponentLocation();
 		FVector RelativeVectorToCenter = SegmentVector * Fraction;
-		FVector RadiusVector = RelativeVectorToCenter.ToOrientationQuat().GetRightVector().GetSafeNormal() * RadiusAtOffset;
+		FVector RadiusVector = UKismetMathLibrary::RotatorFromAxisAndAngle(SegmentVector, Theta).RotateVector(RelativeVectorToCenter.ToOrientationQuat().GetRightVector().GetSafeNormal() * RadiusAtOffset);
 		FVector Point = GetComponentLocation() + RelativeVectorToCenter + RadiusVector;
 		if (ConnectionPoints.ContainsByPredicate([Point, DistanceThreshold](FVector OtherPoint) -> bool { return FVector::DistSquared(OtherPoint, Point) < DistanceThreshold; }))
 		{
@@ -237,7 +248,7 @@ void UBranchSegmentCPP::AddBranchAt(FVector ConnectionPoint)
 	RandomVariance.Yaw = (FMath::FRand() * (MaxVarianceAngle * 2)) - MaxVarianceAngle;
 	RandomVariance.Pitch = (FMath::FRand() * (MaxVarianceAngle * 2)) - MaxVarianceAngle;
 	RandomVariance.Roll = (FMath::FRand() * (MaxVarianceAngle * 2)) - MaxVarianceAngle;
-	FRotator SpawnRotation = UKismetMathLibrary::FindLookAtRotation(SpawnLocation, ConnectionPoint) - FRotator(90, 0, 0) + RandomVariance;
+	FRotator SpawnRotation = UKismetMathLibrary::FindLookAtRotation(SpawnLocation, ConnectionPoint) + RandomVariance;
 
 	UBranchCPP* NewBranch = NewObject<UBranchCPP>(this, UBranchCPP::StaticClass(), FName(FString::Printf(TEXT("Branch%d"), ConnectedBranches.Num())));
 	ConnectedBranches.Add(NewBranch);
@@ -245,7 +256,7 @@ void UBranchSegmentCPP::AddBranchAt(FVector ConnectionPoint)
 	NewBranch->SetWorldLocation(SpawnLocation);
 	NewBranch->SetWorldRotation(SpawnRotation);
 	NewBranch->AttachToComponent(this, FAttachmentTransformRules::KeepWorldTransform);
-
+	NewBranch->AddNewSegment(SpawnRotation);
 	GenerateConnectionPoints();
 }
 

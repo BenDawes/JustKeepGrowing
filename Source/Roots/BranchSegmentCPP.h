@@ -31,11 +31,6 @@ public:
 	// Called every frame
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-		UBranchNubCPP* Nub;
-
-	UFUNCTION(BlueprintCallable)
-		void UpdateNub();
 
 	UPROPERTY()
 		UBranchCPP* ParentBranch;
@@ -51,9 +46,6 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 		void SetLength(float NewLength);
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-		FRotator Direction;
 
 	UFUNCTION(BlueprintCallable)
 		void GenerateConnectionPoints();
@@ -104,7 +96,16 @@ public:
 		FResourceSet Grow(FResourceSet InputResources);
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-
 		float MaxVarianceAngle = 50.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+		FRotator GrowthDirection;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+		UStaticMeshComponent* PointerMesh;
+	UFUNCTION(BlueprintCallable)
+		void ShowPointer();
+	UFUNCTION(BlueprintCallable)
+		void HidePointer();
 };
 
