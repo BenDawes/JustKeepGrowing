@@ -14,6 +14,11 @@ void ARootsGameState::AddRootsSystems(TArray<ARootsSystemCPP*> NewRootsSystems)
 	}
 }
 
+TArray<TWeakObjectPtr<ARootsSystemCPP>> ARootsGameState::GetRootsSystems()
+{
+	return RootsSystems;
+}
+
 void ARootsGameState::EnterState(ERootsTurnState NewState)
 {
 	TurnState = NewState;
@@ -42,18 +47,24 @@ void ARootsGameState::EnterState(ERootsTurnState NewState)
 
 void ARootsGameState::BeginGatherResources()
 {
-	for (ARootsSystemCPP* RootsSystem : RootsSystems)
+	for (TWeakObjectPtr<ARootsSystemCPP> RootsSystem : RootsSystems)
 	{
-		RootsSystem->GatherResources();
+		if (RootsSystem.IsValid())
+		{
+			RootsSystem->GatherResources();
+		}
 	}
 	// TODO: Destroy empty nutrient pockets
 }
 
 void ARootsGameState::BeginSpendResources()
 {
-	for (ARootsSystemCPP* RootsSystem : RootsSystems)
+	for (TWeakObjectPtr<ARootsSystemCPP> RootsSystem : RootsSystems)
 	{
-		RootsSystem->Grow();
+		if (RootsSystem.IsValid())
+		{
+			RootsSystem->Grow();
+		}
 	}
 }
 

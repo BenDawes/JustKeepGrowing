@@ -20,8 +20,9 @@ public:
 	UFUNCTION(BlueprintCallable)
 		void AddRootsSystems(TArray<ARootsSystemCPP*> NewRootsSystems);
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	TArray<ARootsSystemCPP*> RootsSystems;
+		TArray<TWeakObjectPtr<ARootsSystemCPP>> GetRootsSystems();
+
+	TArray<TWeakObjectPtr<ARootsSystemCPP>> RootsSystems;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	ERootsTurnState TurnState;

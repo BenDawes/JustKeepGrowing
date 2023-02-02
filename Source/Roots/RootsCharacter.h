@@ -3,8 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Components/SplineComponent.h"
 #include "GameFramework/Character.h"
 #include "InputActionValue.h"
+#include "FocusNub.h"
 #include "RootsCharacter.generated.h"
 
 class UInputComponent;
@@ -18,10 +20,6 @@ UCLASS(config=Game)
 class ARootsCharacter : public ACharacter
 {
 	GENERATED_BODY()
-
-	/** Pawn mesh: 1st person view (arms; seen only by self) */
-	UPROPERTY(VisibleDefaultsOnly, Category=Mesh)
-	USkeletalMeshComponent* Mesh1P;
 
 	/** First person camera */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
@@ -39,30 +37,53 @@ class ARootsCharacter : public ACharacter
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Input, meta=(AllowPrivateAccess = "true"))
 	class UInputAction* MoveAction;
 
-	
+	/** Focus Action */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+		class UInputAction* PivotAction;
+	/** Focus Action */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+		class UInputAction* ResetFocusAction;
+
+	/** Look Input Action */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+		class UInputAction* LookAction;
+
+
+	/** Look Input Action */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Movement, meta = (AllowPrivateAccess = "true"))
+		float PivotSpeed;
+
+	/** Look Input Action */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Movement, meta = (AllowPrivateAccess = "true"))
+		float TargetPivotDistance;
+
+	/** Look Input Action */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Movement, meta = (AllowPrivateAccess = "true"))
+		float TimeToAdjustDistance;
+	float TimeSpentAdjusting;
+
+	FIntVector CachedMousePosition;
+
 public:
 	ARootsCharacter();
 
 protected:
 	virtual void BeginPlay();
+	virtual void Tick(float DeltaTime) override;
 
 public:
-		
-	/** Look Input Action */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
-	class UInputAction* LookAction;
 
-	/** Bool for AnimBP to switch to another animation set */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Weapon)
-	bool bHasRifle;
+	TWeakObjectPtr<USceneComponent> FocusComponent;
 
-	/** Setter to set the bool */
-	UFUNCTION(BlueprintCallable, Category = Weapon)
-	void SetHasRifle(bool bNewHasRifle);
 
-	/** Getter for the bool */
-	UFUNCTION(BlueprintCallable, Category = Weapon)
-	bool GetHasRifle();
+	UFUNCTION(BlueprintCallable)
+		void SetViewTargetComponent(USceneComponent* NewFocusComponent);
+
+	UPROPERTY()
+		bool bIsFocussed = false;
+
+	UPROPERTY()
+		bool bIsPivoting = false;
 
 protected:
 	/** Called for movement input */
@@ -71,14 +92,15 @@ protected:
 	/** Called for looking input */
 	void Look(const FInputActionValue& Value);
 
+	void StartPivot(const FInputActionValue& Value);
+	void EndPivot(const FInputActionValue& Value);
+	void ResetFocusToFirstRoots(const FInputActionValue& Value);
 protected:
 	// APawn interface
 	virtual void SetupPlayerInputComponent(UInputComponent* InputComponent) override;
 	// End of APawn interface
 
 public:
-	/** Returns Mesh1P subobject **/
-	USkeletalMeshComponent* GetMesh1P() const { return Mesh1P; }
 	/** Returns FirstPersonCameraComponent subobject **/
 	UCameraComponent* GetFirstPersonCameraComponent() const { return FirstPersonCameraComponent; }
 
