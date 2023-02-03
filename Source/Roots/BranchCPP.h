@@ -80,7 +80,7 @@ public:
 		int MaxNSegments = 5;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-		float MaxVarianceAngle = 50.f;
+		float MaxVarianceAngle = 15.f;
 
 	UFUNCTION(BlueprintCallable)
 		UBranchSegmentCPP* GetRandomSubSegment();

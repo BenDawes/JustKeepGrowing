@@ -54,15 +54,15 @@ void UBranchCPP::AlignSegments()
 	{
 		FVector CurrentWorldLocation = GetComponentLocation();
 		Segments[0]->SetWorldLocation(CurrentWorldLocation);
-		Segments[0]->SetWorldRotation(Segments[0]->GrowthDirection);
+		Segments[0]->SetWorldRotation(Segments[0]->SegmentDirection);
 		for (int i = 1; i < Segments.Num(); i++)
 		{
 			UBranchSegmentCPP* PreviousSegment = Segments[i - 1];
-			FVector PreviousOffset = PreviousSegment->Length * (PreviousSegment->GrowthDirection.RotateVector(FVector(0, 0, 1)));
+			FVector PreviousOffset = PreviousSegment->Length * (PreviousSegment->SegmentDirection.RotateVector(FVector(0, 0, 1)));
 			UBranchSegmentCPP* Segment = Segments[i];
 			CurrentWorldLocation += PreviousOffset;
 			Segment->SetWorldLocation(CurrentWorldLocation);
-			Segment->SetWorldRotation(Segment->GrowthDirection);
+			Segment->SetWorldRotation(Segment->SegmentDirection);
 		}
 	}
 	for (UBranchSegmentCPP* Segment : Segments)
@@ -104,7 +104,7 @@ FRotator UBranchCPP::GetGrowDirection()
 	{
 		return GetComponentRotation();
 	}
-	return  Segments.Last()->GrowthDirection;
+	return  Segments.Last()->GrowDirectionWorld;
 }
 
 FResourceSet UBranchCPP::GatherResources()
@@ -240,12 +240,19 @@ UBranchSegmentCPP* UBranchCPP::AddNewSegmentConstructor(FRotator Direction)
 	{
 		return nullptr;
 	}
+	if (!Segments.IsEmpty())
+	{
+		Segments.Last()->bPointerMeshDisabled = true;
+	}
 	UBranchSegmentCPP* NewSegment = CreateDefaultSubobject<UBranchSegmentCPP>(FName(FString::Printf(TEXT("Segment%d"), Segments.Num())));
 	NewSegment->Length = MaxSegmentLength / 2;
 	FRotator RandomVariance;
 	RandomVariance.Yaw = (FMath::FRand() * (MaxVarianceAngle * 2)) - MaxVarianceAngle;
 	RandomVariance.Pitch = (FMath::FRand() * (MaxVarianceAngle * 2)) - MaxVarianceAngle;
-	NewSegment->GrowthDirection = Direction + RandomVariance;
+	FRotator NewDirection = Direction + RandomVariance;
+	NewSegment->GrowDirectionWorld = NewDirection;
+	NewSegment->SegmentDirection = NewDirection;
+	NewSegment->SetWorldRotation(NewDirection);
 	Segments.Add(NewSegment);
 	return NewSegment;
 }
@@ -256,6 +263,10 @@ UBranchSegmentCPP* UBranchCPP::AddNewSegment(FRotator Direction)
 	if (Segments.Num() >= MaxNSegments)
 	{
 		return nullptr;
+	}
+	if (!Segments.IsEmpty())
+	{
+		Segments.Last()->bPointerMeshDisabled = true;
 	}
 	UBranchSegmentCPP* NewSegment = NewObject<UBranchSegmentCPP>(this, UBranchSegmentCPP::StaticClass(), FName(FString::Printf(TEXT("Segment%d"), Segments.Num())));
 	NewSegment->RegisterComponent();
@@ -279,7 +290,10 @@ UBranchSegmentCPP* UBranchCPP::AddNewSegment(FRotator Direction)
 	FRotator NewDirection = Direction + RandomVariance;
 	NewDirection = NewDirection.Clamp();
 	// NewDirection.Yaw -= FMath::FRand() * (NewDirection.Yaw - 180);
-	NewSegment->GrowthDirection = NewDirection;
+	NewSegment->GrowDirectionWorld = NewDirection;
+	NewSegment->SegmentDirection = NewDirection;
+	NewSegment->SetWorldRotation(NewDirection);
+	NewSegment->AdjustCollider();
 	Segments.Add(NewSegment);
 	return NewSegment;
 }

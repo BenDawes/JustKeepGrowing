@@ -18,12 +18,12 @@ ARootsSystemCPP::ARootsSystemCPP()
 	RootBranch = CreateDefaultSubobject<UBranchCPP>("RootBranch");
 	StoredResources = CreateDefaultSubobject<UResourceContainer>("StoredResources");
 	RootBranch->SetupAttachment(RootComponent);
+	RootBranch->SetWorldRotation(FRotator(180, 0, 0));
 }
 
 void ARootsSystemCPP::PostInitializeComponents()
 {
 	Super::PostInitializeComponents();
-	RootBranch->AddNewSegment(FRotator(180, 0, 0));
 	UBranchSegmentCPP* FirstSegment = RootBranch->Segments.IsEmpty() ? nullptr : RootBranch->Segments[0];
 	if (IsValid(FirstSegment))
 	{

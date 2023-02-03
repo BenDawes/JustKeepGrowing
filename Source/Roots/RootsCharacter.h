@@ -48,16 +48,27 @@ class ARootsCharacter : public ACharacter
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 		class UInputAction* LookAction;
 
-
 	/** Look Input Action */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+		class UInputAction* SelectAction;
+	/** Look Input Action */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+		class UInputAction* ZoomAction;
+
+
+	/** Control Direction Action */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+		class UInputAction* ControlDirectionAction;
+
+
+	/** Look controls */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Movement, meta = (AllowPrivateAccess = "true"))
 		float PivotSpeed;
 
-	/** Look Input Action */
+	/** Look controls */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Movement, meta = (AllowPrivateAccess = "true"))
 		float TargetPivotDistance;
-
-	/** Look Input Action */
+	/** Look controls */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Movement, meta = (AllowPrivateAccess = "true"))
 		float TimeToAdjustDistance;
 	float TimeSpentAdjusting;
@@ -75,6 +86,14 @@ public:
 
 	TWeakObjectPtr<USceneComponent> FocusComponent;
 
+	TWeakObjectPtr<UBranchSegmentCPP> SelectedBranchSegment;
+
+	UFUNCTION(BlueprintCallable)
+		UBranchSegmentCPP* GetSelectedBranchSegment() const;
+
+
+	UFUNCTION(BlueprintCallable)
+		void SelectBranchSegment(UBranchSegmentCPP* Segment);
 
 	UFUNCTION(BlueprintCallable)
 		void SetViewTargetComponent(USceneComponent* NewFocusComponent);
@@ -84,6 +103,10 @@ public:
 
 	UPROPERTY()
 		bool bIsPivoting = false;
+
+	UPROPERTY()
+		bool bIsControllingDirection = false;
+
 
 protected:
 	/** Called for movement input */
@@ -95,6 +118,10 @@ protected:
 	void StartPivot(const FInputActionValue& Value);
 	void EndPivot(const FInputActionValue& Value);
 	void ResetFocusToFirstRoots(const FInputActionValue& Value);
+	void TrySelect(const FInputActionValue& Value);
+	void StartControlling(const FInputActionValue& Value);
+	void StopControlling(const FInputActionValue& Value);
+	void Zoom(const FInputActionValue& Value);
 protected:
 	// APawn interface
 	virtual void SetupPlayerInputComponent(UInputComponent* InputComponent) override;

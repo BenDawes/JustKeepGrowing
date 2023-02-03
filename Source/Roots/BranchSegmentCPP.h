@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Components/CapsuleComponent.h"
 #include "Components/DynamicMeshComponent.h"
 #include "Components/ChildActorComponent.h"
 #include "EarthCPP.h"
@@ -30,7 +31,19 @@ protected:
 public:	
 	// Called every frame
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+	UFUNCTION()
+		void AdjustCollider();
+	UPROPERTY()
+		bool bPointerMeshDisabled = false;
 
+	UFUNCTION()
+		void OnSelected();
+
+	UFUNCTION()
+		void OnUnselected();
+
+	UFUNCTION()
+		void DisableDirectionPointer();
 
 	UPROPERTY()
 		UBranchCPP* ParentBranch;
@@ -96,10 +109,10 @@ public:
 		FResourceSet Grow(FResourceSet InputResources);
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-		float MaxVarianceAngle = 50.f;
+		float MaxVarianceAngle = 15.f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-		FRotator GrowthDirection;
+	UPROPERTY()
+		FRotator SegmentDirection;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 		UStaticMeshComponent* PointerMesh;
@@ -107,5 +120,21 @@ public:
 		void ShowPointer();
 	UFUNCTION(BlueprintCallable)
 		void HidePointer();
+
+	bool bIsSelected = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+		UCapsuleComponent* CapsuleComponent;
+
+	UPROPERTY(BlueprintReadOnly)
+		FRotator GrowDirectionWorld;
+
+	UFUNCTION(BlueprintCallable)
+		void CalculateNewDirection(FVector LookDelta, FVector CharacterLocation, FRotator CharacterViewRotation);
+
+	void ClampGrowDirection();
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+		float ClampAngleTolerance;
 };
 

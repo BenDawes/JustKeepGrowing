@@ -31,7 +31,7 @@ ARootsCharacter::ARootsCharacter()
 
 	PivotSpeed = 10.f;
 
-	TargetPivotDistance = 200.f;
+	TargetPivotDistance = 400.f;
 	TimeToAdjustDistance = 1.f;
 	TimeSpentAdjusting = 0.f;
 }
@@ -48,6 +48,8 @@ void ARootsCharacter::BeginPlay()
 		{
 			Subsystem->AddMappingContext(DefaultMappingContext, 0);
 		}
+		PlayerController->bEnableMouseOverEvents = true;
+		PlayerController->bEnableClickEvents = true;
 	}
 
 }
@@ -59,12 +61,29 @@ void ARootsCharacter::Tick(float DeltaTime)
 	if (bIsFocussed && Controller != nullptr && Controller->IsPlayerController() && FocusComponent.IsValid())
 	{
 		FVector ComponentLocation = FocusComponent->GetComponentLocation();
+		if (UBranchSegmentCPP* AsSegment = Cast<UBranchSegmentCPP>(FocusComponent))
+		{
+			ComponentLocation = AsSegment->GetEndLocation();
+		}
 		FVector OurLocation = GetActorLocation();
 		FRotator NewRotation = UKismetMathLibrary::FindLookAtRotation(OurLocation, ComponentLocation);
 		Cast<APlayerController>(Controller)->SetControlRotation(NewRotation);
 		float SquareDistanceFromTarget = FVector::DistSquared(OurLocation, ComponentLocation);
 		FVector TargetLocation = ComponentLocation + (NewRotation.RotateVector(FVector(1,0,0)) * (-TargetPivotDistance));
 		SetActorLocation(FMath::Lerp(OurLocation, TargetLocation, FMath::Clamp(TimeSpentAdjusting / TimeToAdjustDistance, 0, 1)));
+	}
+	bool bIsMoving = false;
+	if (Controller->IsPlayerController())
+	{
+	APlayerController* PC = Cast<APlayerController>(Controller);
+	if (UEnhancedPlayerInput* EnhancedInputComponent = Cast<UEnhancedPlayerInput>(PC->PlayerInput))
+	{
+		bIsMoving = EnhancedInputComponent->GetActionValue(MoveAction).GetMagnitudeSq() > 0.05f;
+	}
+	if ((bIsFocussed && !bIsPivoting) || (!bIsFocussed && !bIsMoving))
+	{
+		PC->bShowMouseCursor = true;
+	}
 	}
 }
 
@@ -87,13 +106,37 @@ void ARootsCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerInp
 		EnhancedInputComponent->BindAction(PivotAction, ETriggerEvent::Triggered, this, &ARootsCharacter::StartPivot);
 		EnhancedInputComponent->BindAction(PivotAction, ETriggerEvent::Completed, this, &ARootsCharacter::EndPivot);
 		EnhancedInputComponent->BindAction(ResetFocusAction, ETriggerEvent::Triggered, this, &ARootsCharacter::ResetFocusToFirstRoots);
+		EnhancedInputComponent->BindAction(ZoomAction, ETriggerEvent::Triggered, this, &ARootsCharacter::Zoom);
+
+		//Interacting
+		EnhancedInputComponent->BindAction(SelectAction, ETriggerEvent::Triggered, this, &ARootsCharacter::TrySelect);
+		EnhancedInputComponent->BindAction(ControlDirectionAction, ETriggerEvent::Triggered, this, &ARootsCharacter::StartControlling);
+		EnhancedInputComponent->BindAction(ControlDirectionAction, ETriggerEvent::Completed, this, &ARootsCharacter::StopControlling);
+
 	}
 }
+UBranchSegmentCPP* ARootsCharacter::GetSelectedBranchSegment() const
+{
+	return SelectedBranchSegment.IsValid() ? SelectedBranchSegment.Get() : nullptr;
+}
+
+void ARootsCharacter::SelectBranchSegment(UBranchSegmentCPP* Segment)
+{
+	if (SelectedBranchSegment.IsValid())
+	{
+		SelectedBranchSegment->OnUnselected();
+	}
+	SelectedBranchSegment = Segment;
+	SelectedBranchSegment->OnSelected();
+	SetViewTargetComponent(Segment);
+}
+
 void ARootsCharacter::SetViewTargetComponent(USceneComponent* NewFocusComponent)
 {
 	TimeSpentAdjusting = 0.f;
 	FocusComponent = NewFocusComponent;
 	bIsFocussed = true;
+	TargetPivotDistance = 400.f;
 	GetCharacterMovement()->BrakingDecelerationFlying = 200.f;
 }
 
@@ -122,25 +165,42 @@ void ARootsCharacter::Look(const FInputActionValue& Value)
 {
 	// input is a Vector2D
 	FVector2D LookAxisVector = Value.Get<FVector2D>();
-	UE_LOG(LogTemp, Warning, TEXT("Look value was %s"), *LookAxisVector.ToString())
 
 	if (Controller != nullptr)
 	{
+		bool bIsMoving = false;
+		if (Controller->IsPlayerController())
+		{
+			if (UEnhancedPlayerInput* EnhancedInputComponent = Cast<UEnhancedPlayerInput>(Cast<APlayerController>(Controller)->PlayerInput))
+			{
+				bIsMoving = EnhancedInputComponent->GetActionValue(MoveAction).GetMagnitudeSq() > 0.05f;
+			}
+		}
 		if (!bIsFocussed)
 		{
-			// add yaw and pitch input to controller
-			AddControllerYawInput(LookAxisVector.X);
-			AddControllerPitchInput(LookAxisVector.Y);
-		}
-		else if (bIsPivoting)
-		{
-			FVector DesiredMove = FVector(0, LookAxisVector.X * PivotSpeed, -(LookAxisVector.Y * PivotSpeed));
-			FVector LocalMove = GetViewRotation().Quaternion() * DesiredMove;
-			AddActorWorldOffset(LocalMove);
-			if (Controller != nullptr && Controller->IsPlayerController())
+			if (bIsMoving || bIsPivoting)
 			{
-				APlayerController* PC = Cast<APlayerController>(Controller);
-				PC->SetMouseLocation(CachedMousePosition.X, CachedMousePosition.Y);
+				// add yaw and pitch input to controller
+				AddControllerYawInput(LookAxisVector.X);
+				AddControllerPitchInput(LookAxisVector.Y);
+			}
+		}
+		else
+		{
+			if (bIsPivoting)
+			{
+				FVector DesiredMove = FVector(0, LookAxisVector.X * PivotSpeed, -(LookAxisVector.Y * PivotSpeed));
+				FVector LocalMove = GetViewRotation().Quaternion() * DesiredMove;
+				AddActorWorldOffset(LocalMove);
+				if (Controller != nullptr && Controller->IsPlayerController())
+				{
+					APlayerController* PC = Cast<APlayerController>(Controller);
+					PC->SetMouseLocation(CachedMousePosition.X, CachedMousePosition.Y);
+				}
+			}
+			else if (bIsControllingDirection)
+			{
+				SelectedBranchSegment->CalculateNewDirection(FVector(0, -LookAxisVector.X, LookAxisVector.Y), GetActorLocation(), GetViewRotation());
 			}
 		}
 	}
@@ -148,10 +208,6 @@ void ARootsCharacter::Look(const FInputActionValue& Value)
 
 void ARootsCharacter::StartPivot(const FInputActionValue& Value)
 {
-	if (!bIsFocussed)
-	{
-		return;
-	}
 	if (!bIsPivoting && Controller != nullptr && Controller->IsPlayerController())
 	{
 		float MouseX;
@@ -191,4 +247,44 @@ void ARootsCharacter::ResetFocusToFirstRoots(const FInputActionValue& Value)
 			}
 		}
 	}
+}
+
+void ARootsCharacter::TrySelect(const FInputActionValue& Value)
+{
+	if (Controller == nullptr || !Controller->IsPlayerController())
+	{
+		return;
+	}
+	APlayerController* PC = Cast<APlayerController>(Controller);
+	FHitResult Result;
+	PC->GetHitResultUnderCursorByChannel(UEngineTypes::ConvertToTraceType(ECollisionChannel::ECC_GameTraceChannel2), false, Result);
+	if (Result.IsValidBlockingHit())
+	{
+		if (UBranchSegmentCPP* Segment = Cast<UBranchSegmentCPP>(Result.GetComponent()->GetAttachParent()))
+		{
+			SelectBranchSegment(Segment);
+			return;
+		}
+	}
+}
+
+void ARootsCharacter::StartControlling(const FInputActionValue& Value)
+{
+	bIsControllingDirection = true;
+}
+
+void ARootsCharacter::StopControlling(const FInputActionValue& Value)
+{
+	bIsControllingDirection = false;
+}
+
+void ARootsCharacter::Zoom(const FInputActionValue& Value)
+{
+	if (!bIsFocussed)
+	{
+		return;
+	}
+	// input is a Vector2D
+	FVector2D ZoomVector = Value.Get<FVector2D>();
+	TargetPivotDistance = FMath::Clamp(TargetPivotDistance + (50 * (ZoomVector.X < 0 ?  1 : -1)), 200, 1500);
 }
