@@ -19,6 +19,9 @@ public:
 	/* Soft path will be converted to content reference before use */
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "General", AdvancedDisplay)
 		TSoftObjectPtr<UStaticMesh> NubMeshPath;
+	/* Soft path will be converted to content reference before use */
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "General", AdvancedDisplay)
+		TSoftObjectPtr<UStaticMesh> DirectionPointerMeshPath;
 
 	URootsDeveloperSettings();
 };

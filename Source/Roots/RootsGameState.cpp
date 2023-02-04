@@ -14,9 +14,17 @@ void ARootsGameState::AddRootsSystems(TArray<ARootsSystemCPP*> NewRootsSystems)
 	}
 }
 
-TArray<TWeakObjectPtr<ARootsSystemCPP>> ARootsGameState::GetRootsSystems()
+TArray<ARootsSystemCPP*> ARootsGameState::GetRootsSystems()
 {
-	return RootsSystems;
+	TArray<ARootsSystemCPP*> Result;
+	for (TWeakObjectPtr<ARootsSystemCPP> RootSystem : RootsSystems)
+	{
+		if (RootSystem.IsValid())
+		{
+			Result.Add(RootSystem.Get());
+		}
+	}
+	return Result;
 }
 
 void ARootsGameState::EnterState(ERootsTurnState NewState)

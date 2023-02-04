@@ -22,11 +22,10 @@ UBranchSegmentCPP::UBranchSegmentCPP()
 	ClampAngleTolerance = 35;
 
 	PointerMesh = CreateDefaultSubobject<UStaticMeshComponent>("PointerMesh");
-	const URootsDeveloperSettings* DevSettings = GetDefault<URootsDeveloperSettings>(); // Access via CDO
-	PointerMesh->SetStaticMesh(DevSettings->NubMeshPath.LoadSynchronous());
 
 	CapsuleComponent = CreateDefaultSubobject<UCapsuleComponent>("CapsuleComponent");
 	CapsuleComponent->InitCapsuleSize(StartRadius - 5, (Length / 2) - 5);
+	RotationOffset = FRotator(90, 0, 0);
 };
 
 void UBranchSegmentCPP::PostInitProperties()
@@ -37,15 +36,16 @@ void UBranchSegmentCPP::PostInitProperties()
 void UBranchSegmentCPP::OnRegister()
 {
 	Super::OnRegister();
-	GenerateConnectionPoints();
+	const URootsDeveloperSettings* DevSettings = GetDefault<URootsDeveloperSettings>(); // Access via CDO
+	PointerMesh->SetStaticMesh(DevSettings->DirectionPointerMeshPath.LoadSynchronous());
 	PointerMesh->RegisterComponent();
 	PointerMesh->AttachToComponent(this, FAttachmentTransformRules::SnapToTargetIncludingScale);
+	PointerMesh->SetVisibility(false);
 	CapsuleComponent->RegisterComponent();
 	CapsuleComponent->AttachToComponent(this, FAttachmentTransformRules::SnapToTargetIncludingScale);
 	CapsuleComponent->SetGenerateOverlapEvents(true);
 	CapsuleComponent->SetCollisionResponseToChannel(ECollisionChannel::ECC_GameTraceChannel2, ECollisionResponse::ECR_Block);
-	PointerMesh->SetVisibility(false);
-	AdjustCollider();
+	OnConfigurationChanged();
 }
 
 void UBranchSegmentCPP::ShowPointer()
@@ -53,8 +53,7 @@ void UBranchSegmentCPP::ShowPointer()
 	if (IsValid(PointerMesh) && !bPointerMeshDisabled)
 	{
 		PointerMesh->SetVisibility(true);
-		PointerMesh->SetRelativeLocation(FVector(0,0,Length + 10));
-		PointerMesh->SetWorldRotation(GrowDirectionWorld);
+		AdjustPointerMesh();
 	}
 }
 
@@ -72,52 +71,44 @@ void UBranchSegmentCPP::DebugCall()
 	UE_LOG(LogTemp, Warning, TEXT("Debug hit!"));
 }
 
-void UBranchSegmentCPP::CalculateNewDirection(FVector LookDelta, FVector CharacterLocation, FRotator CharacterViewRotation)
+void UBranchSegmentCPP::CalculateNewDirection(APlayerController* PC, FVector2D ScreenPosition, FVector CharacterLocation, FRotator CharacterViewRotation)
 {
-	// TODO: rotate around axis perpendicular to lookdelta, orthogonal to direction to character location
-	FVector VectorToThis = PointerMesh->GetComponentLocation() - CharacterLocation;
-	FVector RotatedLookDelta = CharacterViewRotation.RotateVector(LookDelta);
-	FVector RotationAxis = FVector::CrossProduct(VectorToThis.GetSafeNormal(), RotatedLookDelta.GetSafeNormal());
+	FVector WorldOrigin;
+	FVector WorldDirection;
+	if (UGameplayStatics::DeprojectScreenToWorld(PC, ScreenPosition, WorldOrigin, WorldDirection) == true)
+	{
+		FVector MeshLocation = PointerMesh->GetComponentLocation();
+		FVector TargetPoint = UKismetMathLibrary::FindClosestPointOnLine(MeshLocation, WorldOrigin, WorldDirection);
+		FQuat UnAdjustedRotator = (TargetPoint - MeshLocation).ToOrientationQuat();
+		// Our actual growth direction is a rotator that applies to 0,0,1 to give the vector direction we're growing in
+		//DrawDebugLine(GetWorld(), MeshLocation, MeshLocation + (UnAdjustedRotator.RotateVector(FVector::ForwardVector) * 20), FColor::Blue, false, 3.f, 10U);
+		FVector NewPointVector = UnAdjustedRotator.RotateVector(FVector::DownVector);
+		//DrawDebugLine(GetWorld(), MeshLocation, MeshLocation + (NewPointVector * 20), FColor::Green, false, 3.f, 10U);
 
-	GrowDirectionWorld += UKismetMathLibrary::RotatorFromAxisAndAngle(RotationAxis, LookDelta.Length() * 5);
+		GrowDirectionWorld = NewPointVector.ToOrientationRotator(); // -Adjustment;
+		if ((TargetPoint - MeshLocation).Z < 0)
+		{
+			GrowDirectionWorld += FRotator(180,0,0);
+		}
+		//DrawDebugLine(GetWorld(), MeshLocation, MeshLocation + (GrowDirectionWorld.RotateVector(FVector::UpVector) * 20), FColor::Green, false, 3.f, 10U);
+
+		// GrowDirectionWorld = (-GrowDirectionWorld.Vector()).ToOrientationRotator();
+		//GrowDirectionWorld += UKismetMathLibrary::RotatorFromAxisAndAngle(WorldDirection, -90);
+	}
+
 	ClampGrowDirection();
-	/*DrawDebugLine
-	(
-		GetWorld(),
-		GetEndLocation() - (RotationAxis * 10),
-		GetEndLocation() + (RotationAxis * 10),
-		FColor::Red,
-		false,
-		2.f,
-		10U
-	);
-	DrawDebugLine
-	(
-		GetWorld(),
-		GetEndLocation() - (VectorToThis.GetSafeNormal() * 10),
-		GetEndLocation() + (VectorToThis.GetSafeNormal() * 10),
-		FColor::Orange,
-		false,
-		2.f,
-		10U
-	);
-	DrawDebugLine
-	(
-		GetWorld(),
-		GetEndLocation() - (RotatedLookDelta.GetSafeNormal() * 10),
-		GetEndLocation() + (RotatedLookDelta.GetSafeNormal() * 10),
-		FColor::Green,
-		false,
-		2.f,
-		10U
-	);*/
 	PointerMesh->SetWorldRotation(GrowDirectionWorld);
 }
 
 void UBranchSegmentCPP::ClampGrowDirection()
 {
 	FRotator ClampedGrowDirectionWorld = GrowDirectionWorld.Vector().ToOrientationRotator().Clamp(); // Force Roll 0
+	FVector MeshLocation = PointerMesh->GetComponentLocation();
+
 	FRotator SegmentDirectionAsRotator = (GetEndLocation() - GetComponentLocation()).ToOrientationRotator().Clamp(); // Force Roll 0
+	DrawDebugLine(GetWorld(), MeshLocation, MeshLocation + (GrowDirectionWorld.RotateVector(FVector::UpVector) * 20), FColor::Green, false, 3.f, 10U);
+	DrawDebugLine(GetWorld(), MeshLocation, MeshLocation + (ClampedGrowDirectionWorld.RotateVector(FVector::UpVector) * 20), FColor::Blue, false, 3.f, 10U);
+	DrawDebugLine(GetWorld(), MeshLocation, MeshLocation + (SegmentDirectionAsRotator.RotateVector(FVector::UpVector) * 20), FColor::Red, false, 3.f, 10U);
 	FRotator MinValues = SegmentDirectionAsRotator - FRotator(ClampAngleTolerance, ClampAngleTolerance, ClampAngleTolerance);
 	FRotator MaxValues = SegmentDirectionAsRotator + FRotator(ClampAngleTolerance, ClampAngleTolerance, ClampAngleTolerance);
 	/*DrawDebugLine
@@ -164,6 +155,19 @@ void UBranchSegmentCPP::ClampGrowDirection()
 	).Clamp();
 }
 
+void UBranchSegmentCPP::OnConfigurationChanged()
+{
+	AdjustCollider();
+	AdjustPointerMesh();
+	GenerateConnectionPoints();
+}
+
+void UBranchSegmentCPP::AdjustPointerMesh()
+{
+	PointerMesh->SetRelativeLocation(FVector(0, 0, Length + 10));
+	PointerMesh->SetWorldRotation(GrowDirectionWorld);
+}
+
 // Called when the game starts or when spawned
 void UBranchSegmentCPP::BeginPlay()
 {
@@ -189,12 +193,26 @@ void UBranchSegmentCPP::OnSelected()
 {
 	bIsSelected = true;
 	ShowPointer();
+	for (UBranchNubCPP* Nub : ConnectionPointNubs)
+	{
+		if (IsValid(Nub))
+		{
+			Nub->SetShow(true);
+		}
+	}
 }
 
 void UBranchSegmentCPP::OnUnselected()
 {
 	bIsSelected = false;
 	HidePointer();
+	for (UBranchNubCPP* Nub : ConnectionPointNubs)
+	{
+		if (IsValid(Nub))
+		{
+			Nub->SetShow(false);
+		}
+	}
 }
 
 void UBranchSegmentCPP::DisableDirectionPointer()
@@ -211,31 +229,54 @@ void UBranchSegmentCPP::SetLength(float NewLength)
 
 void UBranchSegmentCPP::GenerateConnectionPoints()
 {
-	ConnectionPoints = TArray<FVector>();
-	if (StartRadius < 30 || ConnectedBranches.Num() == 2)
+	for (UBranchNubCPP* Nub : ConnectionPointNubs)
 	{
-		return;
+		if (!IsValid(Nub))
+		{
+			continue;
+		}
+		Nub->DestroyComponent();
+	}
+	ConnectionPointNubs = TArray<UBranchNubCPP*>();
+	TArray<FVector> NewConnectionPoints = GetConnectionVectors();
+
+	for (FVector NubLocation : NewConnectionPoints)
+	{
+		UBranchNubCPP* NewNub = NewObject<UBranchNubCPP>(this, UBranchNubCPP::StaticClass(), FName(FString::Printf(TEXT("Nub%d"), ConnectionPointNubs.Num())));
+		NewNub->RegisterComponent();
+		NewNub->AttachToComponent(this, FAttachmentTransformRules::SnapToTargetIncludingScale);
+		NewNub->SetWorldLocation(NubLocation);
+		ConnectionPointNubs.Add(NewNub);
+	}
+}
+
+TArray<FVector> UBranchSegmentCPP::GetConnectionVectors()
+{
+	TArray<FVector> NewConnectionPoints = TArray<FVector>();
+
+	UBranchCPP* ParentBranch = Cast<UBranchCPP>(GetAttachParent());
+	bool bIsFirstSegmentOnBranch = IsValid(ParentBranch) ? !ParentBranch->Segments.IsEmpty() && ParentBranch->Segments[0] == this : false;
+	if (bIsFirstSegmentOnBranch || StartRadius < 20 || ConnectedBranches.Num() == 2)
+	{
+		return NewConnectionPoints;
 	}
 
 	FVector CandidatePoint = GetRandomFreePointOnEdge();
 	if (!CandidatePoint.IsNearlyZero())
 	{
-		ConnectionPoints.Add(CandidatePoint);
+		NewConnectionPoints.Add(CandidatePoint);
 	}
 
-	if (StartRadius < 40 || ConnectedBranches.Num() == 2)
+	if (StartRadius < 30 || ConnectedBranches.Num() == 2)
 	{
-		return;
+		return NewConnectionPoints;
 	}
 	CandidatePoint = GetRandomFreePointOnEdge();
 	if (!CandidatePoint.IsNearlyZero())
 	{
-		ConnectionPoints.Add(CandidatePoint);
+		NewConnectionPoints.Add(CandidatePoint);
 	}
-	for (UBranchCPP* Branch : ConnectedBranches)
-	{
-		Branch->GenerateConnectionPoints();
-	}
+	return NewConnectionPoints;
 }
 
 FVector UBranchSegmentCPP::GetEndLocation()
@@ -250,25 +291,21 @@ FVector UBranchSegmentCPP::GetRandomFreePointOnEdge()
 	CleanBranches();
 	CleanNubs();
 	int MaxAttempts = 8;
-	float DistanceThreshold = (StartRadius * 3.f) * (StartRadius * 3.f);
+	float DistanceThreshold = (StartRadius * 5.f) * (StartRadius * 5.f);
 	for (int i = 0; i < MaxAttempts; i++)
 	{
 		float Fraction = .25f + (FMath::FRand() / 2.f);
-		float Theta = FMath::Rand() * 360.f;
+		float Theta = FMath::FRand() * 360.f;
 		float RadiusAtOffset = EndRadius + ((StartRadius - EndRadius) * Fraction);
 		FVector SegmentVector = GetEndLocation() - GetComponentLocation();
 		FVector RelativeVectorToCenter = SegmentVector * Fraction;
-		FVector RadiusVector = UKismetMathLibrary::RotatorFromAxisAndAngle(SegmentVector, Theta).RotateVector(RelativeVectorToCenter.ToOrientationQuat().GetRightVector().GetSafeNormal() * RadiusAtOffset);
+		FVector RadiusVector = UKismetMathLibrary::RotatorFromAxisAndAngle(SegmentVector, Theta).RotateVector(SegmentVector.ToOrientationQuat().GetRightVector().GetSafeNormal() * RadiusAtOffset);
 		FVector Point = GetComponentLocation() + RelativeVectorToCenter + RadiusVector;
-		if (ConnectionPoints.ContainsByPredicate([Point, DistanceThreshold](FVector OtherPoint) -> bool { return FVector::DistSquared(OtherPoint, Point) < DistanceThreshold; }))
-		{
-			continue;
-		}
 		if (ConnectedBranches.ContainsByPredicate([Point, DistanceThreshold](UBranchCPP* Branch) -> bool { return FVector::DistSquared(Branch->GetComponentLocation(), Point) < DistanceThreshold; }))
 		{
 			continue;
 		}
-		if (NubsWantingToGrow.ContainsByPredicate([Point, DistanceThreshold](UBranchNubCPP* Nub) -> bool { return FVector::DistSquared(Nub->GetComponentLocation(), Point) < DistanceThreshold; }))
+		if (ConnectionPointNubs.ContainsByPredicate([Point, DistanceThreshold](UBranchNubCPP* Nub) -> bool { return FVector::DistSquared(Nub->GetComponentLocation(), Point) < DistanceThreshold; }))
 		{
 			continue;
 		}
@@ -327,14 +364,14 @@ void UBranchSegmentCPP::CleanBranches()
 void UBranchSegmentCPP::CleanNubs()
 {
 	TArray<UBranchNubCPP*> NewNubs;
-	for (UBranchNubCPP* GrowthNub : NubsWantingToGrow)
+	for (UBranchNubCPP* GrowthNub : ConnectionPointNubs)
 	{
 		if (IsValid(GrowthNub))
 		{
 			NewNubs.Add(GrowthNub);
 		}
 	}
-	NubsWantingToGrow = NewNubs;
+	ConnectionPointNubs = NewNubs;
 }
 
 float UBranchSegmentCPP::GetSubLength()
@@ -359,29 +396,30 @@ FResourceSet UBranchSegmentCPP::Grow(FResourceSet InputResources)
 	{
 		ResultSet = Branch->Grow(ResultSet);
 	}
-	for (UBranchNubCPP* GrowthNub : NubsWantingToGrow)
+	for (UBranchNubCPP* GrowthNub : ConnectionPointNubs)
 	{
-		FResourceSet GrowthCost = GrowthNub->GetGrowthCost();
-		if (UResourceSetFunctions::HasResources(ResultSet, GrowthCost))
+		if (GrowthNub->bWantsToGrow)
 		{
-			ResultSet = UResourceSetFunctions::DrainResources(ResultSet, GrowthCost);
-			AddBranchAt(GrowthNub->GetRelativeLocation());
+			FResourceSet GrowthCost = GrowthNub->GetGrowthCost();
+			if (UResourceSetFunctions::HasResources(ResultSet, GrowthCost))
+			{
+				ResultSet = UResourceSetFunctions::DrainResources(ResultSet, GrowthCost);
+				AddBranchAt(GrowthNub->GetComponentLocation());
+				GrowthNub->DestroyComponent();
+			}
 		}
-		GrowthNub->DestroyComponent();
 	}
-	GenerateConnectionPoints();
-	AdjustCollider();
+	OnConfigurationChanged();
 	return ResultSet;
 }
 
 void UBranchSegmentCPP::AddBranchAt(FVector ConnectionPoint)
 {
 	FVector SpawnLocation = UKismetMathLibrary::FindClosestPointOnLine (ConnectionPoint, GetComponentLocation(), GetEndLocation() - GetComponentLocation());
-	FVector VectorFromSpawnPointToConnectionPoint = (ConnectionPoint - SpawnLocation);
 	FRotator RandomVariance;
 	RandomVariance.Yaw = (FMath::FRand() * (MaxVarianceAngle * 2)) - MaxVarianceAngle;
 	RandomVariance.Pitch = (FMath::FRand() * (MaxVarianceAngle * 2)) - MaxVarianceAngle;
-	FRotator SpawnRotation = VectorFromSpawnPointToConnectionPoint.ToOrientationRotator() + FVector::UpVector.ToOrientationRotator() + RandomVariance;
+	FRotator SpawnRotation = (SpawnLocation - ConnectionPoint).ToOrientationRotator() + FVector::UpVector.ToOrientationRotator() + RandomVariance;
 
 	UBranchCPP* NewBranch = NewObject<UBranchCPP>(this, UBranchCPP::StaticClass(), FName(FString::Printf(TEXT("Branch%d"), ConnectedBranches.Num())));
 	ConnectedBranches.Add(NewBranch);
@@ -390,15 +428,18 @@ void UBranchSegmentCPP::AddBranchAt(FVector ConnectionPoint)
 	NewBranch->RegisterComponent();
 	NewBranch->AttachToComponent(this, FAttachmentTransformRules::KeepWorldTransform);
 	NewBranch->AddNewSegment(SpawnRotation);
-	GenerateConnectionPoints();
 }
 
 void UBranchSegmentCPP::AddBranch()
 {
-	if (ConnectionPoints.IsEmpty())
+	if (ConnectionPointNubs.IsEmpty())
 	{
 		return;
 	}
-	AddBranchAt(ConnectionPoints[FMath::RandRange(0, ConnectionPoints.Num() - 1)]);
+	
+	UBranchNubCPP* ChosenNub = ConnectionPointNubs[FMath::RandRange(0, ConnectionPointNubs.Num() - 1)];
+	AddBranchAt(ChosenNub->GetComponentLocation());
+	ChosenNub->DestroyComponent();
+	GenerateConnectionPoints();
 }
 

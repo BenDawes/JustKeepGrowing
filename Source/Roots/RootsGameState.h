@@ -20,7 +20,8 @@ public:
 	UFUNCTION(BlueprintCallable)
 		void AddRootsSystems(TArray<ARootsSystemCPP*> NewRootsSystems);
 
-		TArray<TWeakObjectPtr<ARootsSystemCPP>> GetRootsSystems();
+	UFUNCTION(BlueprintCallable)
+		TArray<ARootsSystemCPP*> GetRootsSystems();
 
 	TArray<TWeakObjectPtr<ARootsSystemCPP>> RootsSystems;
 

@@ -45,9 +45,6 @@ public:
 	UFUNCTION()
 		void DisableDirectionPointer();
 
-	UPROPERTY()
-		UBranchCPP* ParentBranch;
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 		float StartRadius;
 
@@ -62,12 +59,9 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 		void GenerateConnectionPoints();
+	UFUNCTION(BlueprintCallable)
+		TArray<FVector> GetConnectionVectors();
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-		TArray<FVector> ConnectionPoints;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-		TArray<UBranchNubCPP*> NubsWantingToGrow;
 
 	UFUNCTION(BlueprintCallable)
 		void AddBranchAt(FVector ConnectionPointWorld);
@@ -133,11 +127,24 @@ public:
 		FRotator GrowDirectionWorld;
 
 	UFUNCTION(BlueprintCallable)
-		void CalculateNewDirection(FVector LookDelta, FVector CharacterLocation, FRotator CharacterViewRotation);
+		void CalculateNewDirection(APlayerController* PC, FVector2D ScreenPosition, FVector CharacterLocation, FRotator CharacterViewRotation);
 
 	void ClampGrowDirection();
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 		float ClampAngleTolerance;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+		TArray<UBranchNubCPP*> ConnectionPointNubs;
+
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+		FRotator RotationOffset;
+
+	UFUNCTION()
+		void OnConfigurationChanged();
+	UFUNCTION()
+		void AdjustPointerMesh();
+
 };
 

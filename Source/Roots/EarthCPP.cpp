@@ -10,6 +10,8 @@ AEarthCPP::AEarthCPP()
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 
+	MoistureLevel = 0.5f;
+	MaxRainfall = 20.f;
 }
 
 // Called when the game starts or when spawned
@@ -29,15 +31,23 @@ void AEarthCPP::Tick(float DeltaTime)
 float AEarthCPP::GetWater(FVector StartLocation, FVector EndLocation, float Radius, float Rate)
 {
 	// TODO Returns a %ge from 0 to 1
-	// Sample surface moisture texture and scale by depth
-
-	return 0.0f;
+	// TODO Sample from texture?
+	return MoistureLevel * (EndLocation - StartLocation).Length() * Rate * 0.001f;
 }
 
 void AEarthCPP::UpdateAllMoisture(float Temperature, float Rainfall)
 {
 	// TODO Add rainfall, if temp < 0 or > 25 scale rainfall down by some factor
-	// Multiply by a porousness texture
+	// Multiply by a porousness texture?
+
+	if (Temperature > 25)
+	{
+		MoistureLevel *= 0.8f;
+	}
+
+	float IncomingRainfallMultiplier = 1.f + (Rainfall / MaxRainfall) * (Temperature < 0 ? 0.5f : 1.f);
+	MoistureLevel *= IncomingRainfallMultiplier;
+	MoistureLevel = FMath::Clamp(MoistureLevel, 0.1f, 0.9f);
 }
 
 float AEarthCPP::DrainNutrients(FVector StartLocation, FVector EndLocation, float Radius, float Rate)
@@ -49,7 +59,7 @@ float AEarthCPP::DrainNutrients(FVector StartLocation, FVector EndLocation, floa
 	if (UWorld* World = GetWorld())
 	{
 		TArray<FHitResult> OutHits;
-		World->SweepMultiByChannel(OutHits, StartLocation, EndLocation, FQuat::Identity, ECollisionChannel::ECC_Camera, FCollisionShape::MakeSphere(Radius));
+		World->SweepMultiByChannel(OutHits, StartLocation, EndLocation, FQuat::Identity, ECollisionChannel::ECC_GameTraceChannel3, FCollisionShape::MakeSphere(Radius));
 		for (FHitResult Hit : OutHits)
 		{
 			ANutrientPocketCPP* AsPocket = Cast<ANutrientPocketCPP>(Hit.GetActor());
@@ -58,6 +68,10 @@ float AEarthCPP::DrainNutrients(FVector StartLocation, FVector EndLocation, floa
 				continue;
 			}
 			AccumulatedNutrients += AsPocket->DrainNutrients(Rate);
+			if (AsPocket->RemainingNutrients <= 0.1f)
+			{
+				AsPocket->Destroy();
+			}
 		}
 	}
 	return AccumulatedNutrients;

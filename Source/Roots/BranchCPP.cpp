@@ -198,6 +198,15 @@ FResourceSet UBranchCPP::GetGrowthCost()
 
 void UBranchCPP::GrowSelf()
 {
+	if (Segments.IsEmpty())
+	{
+		return;
+	}
+	if (Segments.Last()->GetSegmentLength() < MaxSegmentLength)
+	{
+		Segments.Last()->SegmentDirection = Segments.Last()->GrowDirectionWorld;// .RotateVector(FVector::UpVector).ToOrientationRotator();
+		Segments.Last()->OnConfigurationChanged();
+	}
 	for (int i = 0; i < Segments.Num(); i++)
 	{
 		UBranchSegmentCPP* Segment = Segments[i];
@@ -293,6 +302,7 @@ UBranchSegmentCPP* UBranchCPP::AddNewSegment(FRotator Direction)
 	NewSegment->SetLength(MaxSegmentLength / 2);
 	NewSegment->RegisterComponent();
 	NewSegment->AttachToComponent(AttachToComponent, FAttachmentTransformRules::SnapToTargetIncludingScale);
+	NewSegment->OnConfigurationChanged();
 	Segments.Add(NewSegment);
 	return NewSegment;
 }

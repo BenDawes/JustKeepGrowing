@@ -32,7 +32,7 @@ void ANutrientPocketCPP::Tick(float DeltaTime)
 float ANutrientPocketCPP::DrainNutrients(float Rate)
 {
 	float Result = FMath::Clamp(Rate, 0, RemainingNutrients);
-	RemainingNutrients -= Rate;
+	RemainingNutrients -= Result;
 	float NewScale = (RemainingNutrients + StartingNutrients) / (StartingNutrients * 2);
 	StaticMesh->SetRelativeScale3D(FVector(NewScale));
 	return Result;

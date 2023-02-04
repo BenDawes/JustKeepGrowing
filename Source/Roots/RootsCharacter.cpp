@@ -124,6 +124,10 @@ void ARootsCharacter::SelectBranchSegment(UBranchSegmentCPP* Segment)
 {
 	if (SelectedBranchSegment.IsValid())
 	{
+		if (SelectedBranchSegment == Segment)
+		{
+			return;
+		}
 		SelectedBranchSegment->OnUnselected();
 	}
 	SelectedBranchSegment = Segment;
@@ -167,6 +171,7 @@ void ARootsCharacter::Look(const FInputActionValue& Value)
 	// input is a Vector2D
 	FVector2D LookAxisVector = Value.Get<FVector2D>();
 
+	UE_LOG(LogTemp, Warning, TEXT("Looking"));
 	if (Controller != nullptr)
 	{
 		bool bIsMoving = false;
@@ -188,6 +193,8 @@ void ARootsCharacter::Look(const FInputActionValue& Value)
 		}
 		else
 		{
+			UE_LOG(LogTemp, Warning, TEXT("Looking is focussed"));
+
 			if (bIsPivoting)
 			{
 				FVector DesiredMove = FVector(0, LookAxisVector.X * PivotSpeed, -(LookAxisVector.Y * PivotSpeed));
@@ -201,7 +208,17 @@ void ARootsCharacter::Look(const FInputActionValue& Value)
 			}
 			else if (bIsControllingDirection)
 			{
-				SelectedBranchSegment->CalculateNewDirection(FVector(0, -LookAxisVector.X, LookAxisVector.Y), GetActorLocation(), GetViewRotation());
+				UE_LOG(LogTemp, Warning, TEXT("Looking is controlling"));
+
+				if (Controller != nullptr && Controller->IsPlayerController())
+				{
+					APlayerController* PC = Cast<APlayerController>(Controller);
+					FVector2D MousePosition;
+					if (Cast<ULocalPlayer>(PC->Player)->ViewportClient->GetMousePosition(MousePosition))
+					{
+						SelectedBranchSegment->CalculateNewDirection(PC, MousePosition, GetActorLocation(), GetViewRotation());
+					}
+				}
 			}
 		}
 	}
@@ -224,6 +241,7 @@ void ARootsCharacter::StartPivot(const FInputActionValue& Value)
 
 void ARootsCharacter::EndPivot(const FInputActionValue& Value)
 {
+	UE_LOG(LogTemp, Warning, TEXT("StoppingPivot"));
 	bIsPivoting = false;
 	if (Controller != nullptr && Controller->IsPlayerController())
 	{
@@ -238,14 +256,11 @@ void ARootsCharacter::ResetFocusToFirstRoots(const FInputActionValue& Value)
 	ARootsGameState* const GameState = GetWorld()->GetGameState<ARootsGameState>();
 	if (IsValid(GameState))
 	{
-		TArray<TWeakObjectPtr<ARootsSystemCPP>> Roots = GameState->GetRootsSystems();
-		for (TWeakObjectPtr<ARootsSystemCPP> Root : Roots)
+		TArray<ARootsSystemCPP*> Roots = GameState->GetRootsSystems();
+		for (ARootsSystemCPP* Root : Roots)
 		{
-			if (Root.IsValid())
-			{
-				SetViewTargetComponent(Root->RootBranch);
-				return;
-			}
+			SetViewTargetComponent(Root->RootBranch);
+			return;
 		}
 	}
 }
@@ -261,6 +276,11 @@ void ARootsCharacter::TrySelect(const FInputActionValue& Value)
 	PC->GetHitResultUnderCursorByChannel(UEngineTypes::ConvertToTraceType(ECollisionChannel::ECC_GameTraceChannel2), false, Result);
 	if (Result.IsValidBlockingHit())
 	{
+		if (UBranchNubCPP* Nub = Cast<UBranchNubCPP>(Result.GetComponent()->GetAttachParent()))
+		{
+			Nub->SetWantsToGrow(!Nub->bWantsToGrow);
+			return;
+		}
 		if (UBranchSegmentCPP* Segment = Cast<UBranchSegmentCPP>(Result.GetComponent()->GetAttachParent()))
 		{
 			SelectBranchSegment(Segment);
@@ -273,25 +293,15 @@ void ARootsCharacter::StartControlling(const FInputActionValue& Value)
 {
 	if (bIsFocussed)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("Starting controlling"));
 		bIsControllingDirection = true;
 	}
-	if (Controller == nullptr || !Controller->IsPlayerController())
-	{
-		return;
-	}
-	APlayerController* PC = Cast<APlayerController>(Controller);
-	PC->bShowMouseCursor = false;
 }
 
 void ARootsCharacter::StopControlling(const FInputActionValue& Value)
 {
+	UE_LOG(LogTemp, Warning, TEXT("Stopping controlling"));
 	bIsControllingDirection = false;
-	if (Controller == nullptr || !Controller->IsPlayerController())
-	{
-		return;
-	}
-	APlayerController* PC = Cast<APlayerController>(Controller);
-	PC->bShowMouseCursor = true;
 }
 
 void ARootsCharacter::Zoom(const FInputActionValue& Value)

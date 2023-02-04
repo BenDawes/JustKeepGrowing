@@ -32,4 +32,9 @@ public:
 	UFUNCTION(BlueprintCallable)
 	float DrainNutrients(FVector StartLocation, FVector EndLocation, float Radius, float Rate);
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+		float MoistureLevel;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+		float MaxRainfall;
 };
