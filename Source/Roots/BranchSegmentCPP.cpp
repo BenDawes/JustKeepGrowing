@@ -27,7 +27,7 @@ UBranchSegmentCPP::UBranchSegmentCPP()
 
 	CapsuleComponent = CreateDefaultSubobject<UCapsuleComponent>("CapsuleComponent");
 	CapsuleComponent->InitCapsuleSize(StartRadius - 5, (Length / 2) - 5);
-}
+};
 
 void UBranchSegmentCPP::PostInitProperties()
 {
@@ -38,7 +38,9 @@ void UBranchSegmentCPP::OnRegister()
 {
 	Super::OnRegister();
 	GenerateConnectionPoints();
+	PointerMesh->RegisterComponent();
 	PointerMesh->AttachToComponent(this, FAttachmentTransformRules::SnapToTargetIncludingScale);
+	CapsuleComponent->RegisterComponent();
 	CapsuleComponent->AttachToComponent(this, FAttachmentTransformRules::SnapToTargetIncludingScale);
 	CapsuleComponent->SetGenerateOverlapEvents(true);
 	CapsuleComponent->SetCollisionResponseToChannel(ECollisionChannel::ECC_GameTraceChannel2, ECollisionResponse::ECR_Block);
@@ -63,6 +65,11 @@ void UBranchSegmentCPP::HidePointer()
 		PointerMesh->SetVisibility(false);
 	}
 
+}
+
+void UBranchSegmentCPP::DebugCall()
+{
+	UE_LOG(LogTemp, Warning, TEXT("Debug hit!"));
 }
 
 void UBranchSegmentCPP::CalculateNewDirection(FVector LookDelta, FVector CharacterLocation, FRotator CharacterViewRotation)
@@ -369,18 +376,18 @@ FResourceSet UBranchSegmentCPP::Grow(FResourceSet InputResources)
 
 void UBranchSegmentCPP::AddBranchAt(FVector ConnectionPoint)
 {
-	FVector SpawnLocation = UKismetMathLibrary::FindClosestPointOnLine(ConnectionPoint, GetComponentLocation(), GetEndLocation() - GetComponentLocation());
+	FVector SpawnLocation = UKismetMathLibrary::FindClosestPointOnLine (ConnectionPoint, GetComponentLocation(), GetEndLocation() - GetComponentLocation());
 	FVector VectorFromSpawnPointToConnectionPoint = (ConnectionPoint - SpawnLocation);
 	FRotator RandomVariance;
 	RandomVariance.Yaw = (FMath::FRand() * (MaxVarianceAngle * 2)) - MaxVarianceAngle;
 	RandomVariance.Pitch = (FMath::FRand() * (MaxVarianceAngle * 2)) - MaxVarianceAngle;
-	FRotator SpawnRotation = UKismetMathLibrary::FindLookAtRotation(SpawnLocation, ConnectionPoint) + RandomVariance;
+	FRotator SpawnRotation = VectorFromSpawnPointToConnectionPoint.ToOrientationRotator() + FVector::UpVector.ToOrientationRotator() + RandomVariance;
 
 	UBranchCPP* NewBranch = NewObject<UBranchCPP>(this, UBranchCPP::StaticClass(), FName(FString::Printf(TEXT("Branch%d"), ConnectedBranches.Num())));
 	ConnectedBranches.Add(NewBranch);
-	NewBranch->RegisterComponent();
 	NewBranch->SetWorldLocation(SpawnLocation);
 	NewBranch->SetWorldRotation(SpawnRotation);
+	NewBranch->RegisterComponent();
 	NewBranch->AttachToComponent(this, FAttachmentTransformRules::KeepWorldTransform);
 	NewBranch->AddNewSegment(SpawnRotation);
 	GenerateConnectionPoints();

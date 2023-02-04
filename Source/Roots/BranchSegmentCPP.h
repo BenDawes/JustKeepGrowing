@@ -126,6 +126,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 		UCapsuleComponent* CapsuleComponent;
 
+	UFUNCTION()
+		void DebugCall();
+
 	UPROPERTY(BlueprintReadOnly)
 		FRotator GrowDirectionWorld;
 

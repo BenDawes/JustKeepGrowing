@@ -59,6 +59,7 @@ void ARootsSystemCPP::Tick(float DeltaTime)
 void ARootsSystemCPP::Grow()
 {
 	StoredResources->SetResources(RootBranch->Grow(StoredResources->Resources));
+	RootBranch->AlignSegments();
 }
 
 FResourceSet ARootsSystemCPP::GatherResources()

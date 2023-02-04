@@ -152,6 +152,7 @@ void ARootsCharacter::Move(const FInputActionValue& Value)
 		AddMovementInput(GetActorRightVector(), MovementVector.X);
 		FocusComponent.Reset();
 		bIsFocussed = false;
+		bIsControllingDirection = false;
 		if (Controller->IsPlayerController())
 		{
 			APlayerController* PC = Cast<APlayerController>(Controller);
@@ -270,12 +271,27 @@ void ARootsCharacter::TrySelect(const FInputActionValue& Value)
 
 void ARootsCharacter::StartControlling(const FInputActionValue& Value)
 {
-	bIsControllingDirection = true;
+	if (bIsFocussed)
+	{
+		bIsControllingDirection = true;
+	}
+	if (Controller == nullptr || !Controller->IsPlayerController())
+	{
+		return;
+	}
+	APlayerController* PC = Cast<APlayerController>(Controller);
+	PC->bShowMouseCursor = false;
 }
 
 void ARootsCharacter::StopControlling(const FInputActionValue& Value)
 {
 	bIsControllingDirection = false;
+	if (Controller == nullptr || !Controller->IsPlayerController())
+	{
+		return;
+	}
+	APlayerController* PC = Cast<APlayerController>(Controller);
+	PC->bShowMouseCursor = true;
 }
 
 void ARootsCharacter::Zoom(const FInputActionValue& Value)

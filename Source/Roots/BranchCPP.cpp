@@ -269,20 +269,17 @@ UBranchSegmentCPP* UBranchCPP::AddNewSegment(FRotator Direction)
 		Segments.Last()->bPointerMeshDisabled = true;
 	}
 	UBranchSegmentCPP* NewSegment = NewObject<UBranchSegmentCPP>(this, UBranchSegmentCPP::StaticClass(), FName(FString::Printf(TEXT("Segment%d"), Segments.Num())));
-	NewSegment->RegisterComponent();
-	FVector NewLocation = FVector();
-	NewSegment->SetLength(MaxSegmentLength / 2);
+	USceneComponent* AttachToComponent;
 	if (Segments.Num() > 0)
 	{
 		UBranchSegmentCPP* AttachedToSegment = Segments.Last();
 		NewSegment->StartRadius = AttachedToSegment->EndRadius;
 		NewSegment->EndRadius = NewSegment->StartRadius * 0.8;
-		NewSegment->AttachToComponent(AttachedToSegment, FAttachmentTransformRules::SnapToTargetIncludingScale);
-		NewLocation = AttachedToSegment->Length * FVector(0, 0, 1);
+		AttachToComponent = AttachedToSegment;
 	}
 	else
 	{
-		NewSegment->AttachToComponent(this, FAttachmentTransformRules::SnapToTargetIncludingScale);
+		AttachToComponent = this;
 	}
 	FRotator RandomVariance;
 	RandomVariance.Yaw = (FMath::FRand() * (MaxVarianceAngle * 2)) - MaxVarianceAngle;
@@ -293,7 +290,9 @@ UBranchSegmentCPP* UBranchCPP::AddNewSegment(FRotator Direction)
 	NewSegment->GrowDirectionWorld = NewDirection;
 	NewSegment->SegmentDirection = NewDirection;
 	NewSegment->SetWorldRotation(NewDirection);
-	NewSegment->AdjustCollider();
+	NewSegment->SetLength(MaxSegmentLength / 2);
+	NewSegment->RegisterComponent();
+	NewSegment->AttachToComponent(AttachToComponent, FAttachmentTransformRules::SnapToTargetIncludingScale);
 	Segments.Add(NewSegment);
 	return NewSegment;
 }
