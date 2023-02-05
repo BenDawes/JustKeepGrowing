@@ -1,5 +1,5 @@
 # Ignore all files by default, but scan all directories.
-Content/Stylized_PBR_Nature/Maps/Stylized_Nature_ExampleScene_BuiltData.uasset
+!/Content/Stylized_PBR_Nature/Maps/Stylized_Nature_ExampleScene_BuiltData.uasset
 *
 !*/
 
