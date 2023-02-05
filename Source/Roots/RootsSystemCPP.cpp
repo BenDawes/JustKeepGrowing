@@ -94,7 +94,7 @@ FResourceSet ARootsSystemCPP::GatherResources()
 	StoredResources->AddResources(Result);
 	return Result;
 }
-
+/*
 void ARootsSystemCPP::PreEditChange(FProperty* PropertyAboutToChange)
 {
 	if (PropertyAboutToChange->GetFName() == GET_MEMBER_NAME_CHECKED(ARootsSystemCPP, Radius))
@@ -112,7 +112,7 @@ void ARootsSystemCPP::PostEditChangeProperty(struct FPropertyChangedEvent& e)
 	}
 	Super::PostEditChangeProperty(e);
 }
-
+*/
 FResourceSet ARootsSystemCPP::CapResources(FResourceSet InResources)
 {
 	int NSegments = RootBranch->GetAllSubSegments().Num();

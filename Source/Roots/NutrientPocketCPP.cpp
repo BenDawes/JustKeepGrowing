@@ -12,8 +12,7 @@ ANutrientPocketCPP::ANutrientPocketCPP()
 	RootComponent = CreateDefaultSubobject<USceneComponent>("RootComponent");
 	StaticMesh = CreateDefaultSubobject<UStaticMeshComponent>("StaticMesh");
 	StaticMesh->SetupAttachment(RootComponent);
-	const URootsDeveloperSettings* DevSettings = GetDefault<URootsDeveloperSettings>(); // Access via CDO
-	StaticMesh->SetStaticMesh(DevSettings->NutrientsMeshes[FMath::RandRange(0, DevSettings->NutrientsMeshes.Num() - 1)].LoadSynchronous());
+
 	StaticMesh->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore); // Nutrients
 	StaticMesh->SetCollisionResponseToChannel(ECollisionChannel::ECC_GameTraceChannel3, ECollisionResponse::ECR_Block); // Nutrients
 
@@ -27,7 +26,13 @@ void ANutrientPocketCPP::BeginPlay()
 {
 	Super::BeginPlay();
 	const URootsDeveloperSettings* DevSettings = GetDefault<URootsDeveloperSettings>(); // Access via CDO
-	StaticMesh->SetStaticMesh(DevSettings->NutrientsMeshes[FMath::RandRange(0, DevSettings->NutrientsMeshes.Num() - 1)].LoadSynchronous());
+	if (IsValid(DevSettings))
+	{
+		if (!DevSettings->NutrientsMeshes.IsEmpty())
+		{
+			StaticMesh->SetStaticMesh(DevSettings->NutrientsMeshes[FMath::RandRange(0, DevSettings->NutrientsMeshes.Num() - 1)].LoadSynchronous());
+		}
+	}
 	SetNewScale();
 	
 }

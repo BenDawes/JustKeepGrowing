@@ -13,8 +13,6 @@ UBranchNubCPP::UBranchNubCPP()
 	StartRadius = 10;
 
 	StaticMesh = CreateDefaultSubobject<UStaticMeshComponent>("StaticMesh");
-	const URootsDeveloperSettings* DevSettings = GetDefault<URootsDeveloperSettings>(); // Access via CDO
-	StaticMesh->SetStaticMesh(DevSettings->NubMeshPath.LoadSynchronous());
 	StaticMesh->SetCollisionResponseToChannel(ECollisionChannel::ECC_GameTraceChannel2, ECollisionResponse::ECR_Block); // Selectable
 	LargeScale = FVector(0.7f, 0.7f, 0.7f);
 	SmallScale = FVector(0.4f, 0.4f, 0.4f);
@@ -23,6 +21,8 @@ UBranchNubCPP::UBranchNubCPP()
 void UBranchNubCPP::OnRegister()
 {
 	Super::OnRegister();
+	const URootsDeveloperSettings* DevSettings = GetDefault<URootsDeveloperSettings>(); // Access via CDO
+	StaticMesh->SetStaticMesh(DevSettings->NubMeshPath.LoadSynchronous());
 	StaticMesh->RegisterComponent();
 	StaticMesh->AttachToComponent(this, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
 	SetWantsToGrow(false);

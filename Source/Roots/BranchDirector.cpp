@@ -13,8 +13,6 @@ UBranchDirector::UBranchDirector()
 	PrimaryComponentTick.bCanEverTick = false;
 
 	StaticMesh = CreateDefaultSubobject<UStaticMeshComponent>("StaticMesh");
-	const URootsDeveloperSettings* DevSettings = GetDefault<URootsDeveloperSettings>(); // Access via CDO
-	StaticMesh->SetStaticMesh(DevSettings->NubMeshPath.LoadSynchronous());
 	StaticMesh->SetCollisionResponseToChannel(ECollisionChannel::ECC_GameTraceChannel2, ECollisionResponse::ECR_Block); // Selectable
 }
 

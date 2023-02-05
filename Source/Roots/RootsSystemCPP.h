@@ -26,8 +26,8 @@ protected:
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& e) override;
-	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
+	//virtual void PostEditChangeProperty(struct FPropertyChangedEvent& e) override;
+	//virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 		UResourceContainer* StoredResources;

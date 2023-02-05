@@ -36,7 +36,6 @@ void UBranchSegmentCPP::PostInitProperties()
 void UBranchSegmentCPP::OnRegister()
 {
 	Super::OnRegister();
-	const URootsDeveloperSettings* DevSettings = GetDefault<URootsDeveloperSettings>(); // Access via CDO
 	CapsuleComponent->RegisterComponent();
 	CapsuleComponent->AttachToComponent(this, FAttachmentTransformRules::SnapToTargetIncludingScale);
 	CapsuleComponent->SetGenerateOverlapEvents(true);
