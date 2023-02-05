@@ -112,6 +112,8 @@ void ARootsCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerInp
 		EnhancedInputComponent->BindAction(SelectAction, ETriggerEvent::Triggered, this, &ARootsCharacter::TrySelect);
 		EnhancedInputComponent->BindAction(ControlDirectionAction, ETriggerEvent::Triggered, this, &ARootsCharacter::StartControlling);
 		EnhancedInputComponent->BindAction(ControlDirectionAction, ETriggerEvent::Completed, this, &ARootsCharacter::StopControlling);
+		//Quit
+		EnhancedInputComponent->BindAction(QuitAction, ETriggerEvent::Completed, this, &ARootsCharacter::Quit);
 
 	}
 }
@@ -213,11 +215,6 @@ void ARootsCharacter::Look(const FInputActionValue& Value)
 				if (Controller != nullptr && Controller->IsPlayerController())
 				{
 					APlayerController* PC = Cast<APlayerController>(Controller);
-					FVector2D MousePosition;
-					if (Cast<ULocalPlayer>(PC->Player)->ViewportClient->GetMousePosition(MousePosition))
-					{
-						SelectedBranchSegment->CalculateNewDirection(PC, MousePosition, GetActorLocation(), GetViewRotation());
-					}
 					if (SelectedPointer.IsValid())
 					{
 						float MouseX;
@@ -348,4 +345,9 @@ void ARootsCharacter::SelectOrDragPointer(UBranchDirector* Pointer, FIntVector M
 		SelectedPointer->TryAddWorldRotation(UKismetMathLibrary::RotatorFromAxisAndAngle(AxisVecWorldSpace, MouseDiff.Size()));
 	}
 	DragStartPosition = MousePos;
+}
+
+void ARootsCharacter::Quit(const FInputActionValue& Value)
+{
+	FGenericPlatformMisc::RequestExit(false);
 }

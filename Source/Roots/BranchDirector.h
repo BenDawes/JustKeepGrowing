@@ -34,4 +34,6 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 		FRotator BaselineRotator;
+
+	void DisableDirectionPointer();
 };

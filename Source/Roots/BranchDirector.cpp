@@ -40,7 +40,11 @@ void UBranchDirector::OnComponentDestroyed(bool bDestroyingHierarchy)
 void UBranchDirector::BeginPlay()
 {
 	Super::BeginPlay();
-	
+
+	if (UBranchSegmentCPP* Segment = Cast<UBranchSegmentCPP>(GetAttachParent()))
+	{
+		SetWorldRotation(Segment->GrowDirectionWorld);
+	}
 }
 
 // Called every frame
@@ -69,4 +73,10 @@ void UBranchDirector::TryAddWorldRotation(FRotator Rotator)
 			Segment->SetGrowDirection(NewRotation);
 		}
 	}
+}
+
+void UBranchDirector::DisableDirectionPointer()
+{
+	StaticMesh->SetVisibility(false);
+	StaticMesh->Deactivate();
 }

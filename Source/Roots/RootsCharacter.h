@@ -72,6 +72,9 @@ class ARootsCharacter : public ACharacter
 	/** Look controls */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Movement, meta = (AllowPrivateAccess = "true"))
 		float TimeToAdjustDistance;
+	/** Focus Action */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+		class UInputAction* QuitAction;
 	float TimeSpentAdjusting;
 
 	FIntVector CachedMousePosition;
@@ -127,6 +130,7 @@ protected:
 	void StartControlling(const FInputActionValue& Value);
 	void StopControlling(const FInputActionValue& Value);
 	void Zoom(const FInputActionValue& Value);
+	void Quit(const FInputActionValue& Value);
 	
 	void SelectOrDragPointer(UBranchDirector* Pointer, FIntVector MousePos);
 protected:

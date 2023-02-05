@@ -160,10 +160,15 @@ FResourceSet UBranchCPP::Grow(FResourceSet InputResources)
 		ResultSet = Segment->Grow(ResultSet);
 	}
 	FResourceSet ResourcesNeededToGrowSelf = GetGrowthCost();
-	if (CanGrowSelf() && UResourceSetFunctions::HasResources(ResultSet, ResourcesNeededToGrowSelf))
+	bool bCanGrow = CanGrowSelf();
+	if (bCanGrow && UResourceSetFunctions::HasResources(ResultSet, ResourcesNeededToGrowSelf))
 	{
 		ResultSet = UResourceSetFunctions::DrainResources(ResultSet, ResourcesNeededToGrowSelf);
 		GrowSelf();
+	}
+	if (!bCanGrow && !Segments.IsEmpty())
+	{
+		Segments.Last()->DisableDirectionPointer();
 	}
 	return ResultSet;
 }
@@ -224,11 +229,26 @@ void UBranchCPP::GrowSelf()
 	{
 		return;
 	}
-	/*if (Segments.Last()->GetSegmentLength() < MaxSegmentLength)
+	if (Segments.Last()->GetSegmentLength() < MaxSegmentLength)
 	{
-		Segments.Last()->SegmentDirection = Segments.Last()->GrowDirectionWorld;// .RotateVector(FVector::UpVector).ToOrientationRotator();
+		FRotator GrowDir = Segments.Last()->GrowDirectionWorld;
+		FRotator CurrentDir = Segments.Last()->SegmentDirection;
+		FRotator LerpedDir = UKismetMathLibrary::RLerp(
+			GrowDir,
+			CurrentDir,
+			0.5,
+			true
+		);
+		Segments.Last()->SegmentDirection = LerpedDir;
+		FRotator Diff = LerpedDir - CurrentDir;
+		Segments.Last()->GrowDirectionWorld += Diff;
+		Segments.Last()->BranchDirector->SetWorldRotation(Segments.Last()->GrowDirectionWorld);
 		Segments.Last()->OnConfigurationChanged();
-	}*/
+	}
+	else
+	{
+		Segments.Last()->DisableDirectionPointer();
+	}
 	for (int i = 0; i < Segments.Num(); i++)
 	{
 		UBranchSegmentCPP* Segment = Segments[i];
@@ -297,7 +317,7 @@ UBranchSegmentCPP* UBranchCPP::AddNewSegment(FRotator Direction)
 	}
 	if (!Segments.IsEmpty())
 	{
-		Segments.Last()->bPointerMeshDisabled = true;
+		Segments.Last()->DisableDirectionPointer();
 	}
 	UBranchSegmentCPP* NewSegment = NewObject<UBranchSegmentCPP>(this, UBranchSegmentCPP::StaticClass(), FName(FString::Printf(TEXT("Segment%d"), Segments.Num())));
 	USceneComponent* AttachToComponent;

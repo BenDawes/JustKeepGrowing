@@ -21,7 +21,6 @@ UBranchSegmentCPP::UBranchSegmentCPP()
 	Length = 120;
 	ClampAngleTolerance = 35;
 
-	PointerMesh = CreateDefaultSubobject<UStaticMeshComponent>("PointerMesh");
 	BranchDirector = CreateDefaultSubobject<UBranchDirector>("BranchDirector");
 
 	CapsuleComponent = CreateDefaultSubobject<UCapsuleComponent>("CapsuleComponent");
@@ -38,10 +37,6 @@ void UBranchSegmentCPP::OnRegister()
 {
 	Super::OnRegister();
 	const URootsDeveloperSettings* DevSettings = GetDefault<URootsDeveloperSettings>(); // Access via CDO
-	PointerMesh->SetStaticMesh(DevSettings->DirectionPointerMeshPath.LoadSynchronous());
-	PointerMesh->RegisterComponent();
-	PointerMesh->AttachToComponent(this, FAttachmentTransformRules::SnapToTargetIncludingScale);
-	PointerMesh->SetVisibility(false);
 	CapsuleComponent->RegisterComponent();
 	CapsuleComponent->AttachToComponent(this, FAttachmentTransformRules::SnapToTargetIncludingScale);
 	CapsuleComponent->SetGenerateOverlapEvents(true);
@@ -49,116 +44,11 @@ void UBranchSegmentCPP::OnRegister()
 	BranchDirector->RegisterComponent();
 	BranchDirector->AttachToComponent(this, FAttachmentTransformRules::SnapToTargetIncludingScale);
 	OnConfigurationChanged();
-	// PointerMesh->DestroyComponent();
-}
-
-void UBranchSegmentCPP::ShowPointer()
-{
-	if (IsValid(PointerMesh) && !bPointerMeshDisabled)
-	{
-		PointerMesh->SetVisibility(true);
-		AdjustPointerMesh();
-	}
-}
-
-void UBranchSegmentCPP::HidePointer()
-{
-	if (IsValid(PointerMesh))
-	{
-		PointerMesh->SetVisibility(false);
-	}
-
 }
 
 void UBranchSegmentCPP::DebugCall()
 {
 	UE_LOG(LogTemp, Warning, TEXT("Debug hit!"));
-}
-
-void UBranchSegmentCPP::CalculateNewDirection(APlayerController* PC, FVector2D ScreenPosition, FVector CharacterLocation, FRotator CharacterViewRotation)
-{
-	/*
-	FVector WorldOrigin;
-	FVector WorldDirection;
-	if (UGameplayStatics::DeprojectScreenToWorld(PC, ScreenPosition, WorldOrigin, WorldDirection) == true)
-	{
-		FVector MeshLocation = PointerMesh->GetComponentLocation();
-		FVector TargetPoint = UKismetMathLibrary::FindClosestPointOnLine(MeshLocation, WorldOrigin, WorldDirection);
-		FQuat UnAdjustedRotator = (TargetPoint - MeshLocation).ToOrientationQuat();
-		// Our actual growth direction is a rotator that applies to 0,0,1 to give the vector direction we're growing in
-		//DrawDebugLine(GetWorld(), MeshLocation, MeshLocation + (UnAdjustedRotator.RotateVector(FVector::ForwardVector) * 20), FColor::Blue, false, 3.f, 10U);
-		FVector NewPointVector = UnAdjustedRotator.RotateVector(FVector::DownVector);
-		//DrawDebugLine(GetWorld(), MeshLocation, MeshLocation + (NewPointVector * 20), FColor::Green, false, 3.f, 10U);
-
-		GrowDirectionWorld = NewPointVector.ToOrientationRotator(); // -Adjustment;
-		if ((TargetPoint - MeshLocation).Z < 0)
-		{
-			GrowDirectionWorld += FRotator(180,0,0);
-		}
-		//DrawDebugLine(GetWorld(), MeshLocation, MeshLocation + (GrowDirectionWorld.RotateVector(FVector::UpVector) * 20), FColor::Green, false, 3.f, 10U);
-
-		// GrowDirectionWorld = (-GrowDirectionWorld.Vector()).ToOrientationRotator();
-		//GrowDirectionWorld += UKismetMathLibrary::RotatorFromAxisAndAngle(WorldDirection, -90);
-	}
-	*/
-
-	//ClampGrowDirection();
-	//PointerMesh->SetWorldRotation(GrowDirectionWorld);
-}
-
-void UBranchSegmentCPP::ClampGrowDirection()
-{
-	FRotator ClampedGrowDirectionWorld = GrowDirectionWorld.Vector().ToOrientationRotator().Clamp(); // Force Roll 0
-	FVector MeshLocation = PointerMesh->GetComponentLocation();
-
-	FRotator SegmentDirectionAsRotator = (GetEndLocation() - GetComponentLocation()).ToOrientationRotator().Clamp(); // Force Roll 0
-	DrawDebugLine(GetWorld(), MeshLocation, MeshLocation + (GrowDirectionWorld.RotateVector(FVector::UpVector) * 20), FColor::Green, false, 3.f, 10U);
-	DrawDebugLine(GetWorld(), MeshLocation, MeshLocation + (ClampedGrowDirectionWorld.RotateVector(FVector::UpVector) * 20), FColor::Blue, false, 3.f, 10U);
-	DrawDebugLine(GetWorld(), MeshLocation, MeshLocation + (SegmentDirectionAsRotator.RotateVector(FVector::UpVector) * 20), FColor::Red, false, 3.f, 10U);
-	FRotator MinValues = SegmentDirectionAsRotator - FRotator(ClampAngleTolerance, ClampAngleTolerance, ClampAngleTolerance);
-	FRotator MaxValues = SegmentDirectionAsRotator + FRotator(ClampAngleTolerance, ClampAngleTolerance, ClampAngleTolerance);
-	/*DrawDebugLine
-	(
-		GetWorld(),
-		GetEndLocation(),
-		GetEndLocation() + (ClampedGrowDirectionWorld.Vector() * 50),
-		FColor::Red,
-		false,
-		2.f,
-		10U
-	);
-	DrawDebugLine
-	(
-		GetWorld(),
-		GetEndLocation(),
-		GetEndLocation() + (SegmentDirectionAsRotator.Vector() * 50),
-		FColor::Red,
-		false,
-		2.f,
-		10U
-	);*/
-	auto ClampValue = [](float Val, float Min, float Max) -> float {
-		float ResVal = Val;
-		if (Min < 0 && ResVal > Max && ResVal < 360 + Min) {
-			ResVal = (ResVal - Max) > (360 + Min - ResVal) ? Min : Max;
-		}
-		if (Max > 360 && ResVal < Min && ResVal > Max - 360) {
-			ResVal = (Min - ResVal) > (ResVal - (Max - 360)) ? Max : Min;
-		}
-		if (Min > 0 && ResVal < Min) {
-			ResVal = Min;
-		}
-		if (Max < 360 && ResVal > Max) {
-			ResVal = Max;
-		}
-		return ResVal;
-	};
-
-	GrowDirectionWorld = FRotator(
-		ClampValue(ClampedGrowDirectionWorld.Pitch, MinValues.Pitch, MaxValues.Pitch),
-		ClampValue(ClampedGrowDirectionWorld.Yaw, MinValues.Yaw, MaxValues.Yaw),
-		ClampValue(ClampedGrowDirectionWorld.Roll, MinValues.Roll, MaxValues.Roll)
-	).Clamp();
 }
 
 void UBranchSegmentCPP::SetGrowDirection(FRotator NewDirection)
@@ -175,8 +65,6 @@ void UBranchSegmentCPP::OnConfigurationChanged()
 
 void UBranchSegmentCPP::AdjustPointerMesh()
 {
-	PointerMesh->SetRelativeLocation(FVector(0, 0, Length + 100));
-	PointerMesh->SetWorldRotation(GrowDirectionWorld);
 	BranchDirector->SetRelativeLocation(FVector(0, 0, Length + 10));
 	BranchDirector->SetWorldRotation(GrowDirectionWorld);
 }
@@ -207,33 +95,18 @@ void UBranchSegmentCPP::AdjustCollider()
 void UBranchSegmentCPP::OnSelected()
 {
 	bIsSelected = true;
-	ShowPointer();
-	for (UBranchNubCPP* Nub : ConnectionPointNubs)
-	{
-		if (IsValid(Nub))
-		{
-			Nub->SetShow(true);
-		}
-	}
 }
 
 void UBranchSegmentCPP::OnUnselected()
 {
 	bIsSelected = false;
-	HidePointer();
-	for (UBranchNubCPP* Nub : ConnectionPointNubs)
-	{
-		if (IsValid(Nub))
-		{
-			Nub->SetShow(false);
-		}
-	}
 }
 
 void UBranchSegmentCPP::DisableDirectionPointer()
 {
 	bPointerMeshDisabled = true;
-	PointerMesh->SetVisibility(false);
+	BranchDirector->DisableDirectionPointer();
+	BranchDirector->Deactivate();
 }
 
 void UBranchSegmentCPP::SetLength(float NewLength)

@@ -109,14 +109,7 @@ public:
 		FRotator SegmentDirection;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-		UStaticMeshComponent* PointerMesh;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 		UBranchDirector* BranchDirector;
-	UFUNCTION(BlueprintCallable)
-		void ShowPointer();
-	UFUNCTION(BlueprintCallable)
-		void HidePointer();
 
 	bool bIsSelected = false;
 
@@ -128,11 +121,6 @@ public:
 
 	UPROPERTY(BlueprintReadOnly)
 		FRotator GrowDirectionWorld;
-
-	UFUNCTION(BlueprintCallable)
-		void CalculateNewDirection(APlayerController* PC, FVector2D ScreenPosition, FVector CharacterLocation, FRotator CharacterViewRotation);
-
-	void ClampGrowDirection();
 
 	UFUNCTION()
 		void SetGrowDirection(FRotator NewDirection);

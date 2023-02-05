@@ -26,8 +26,6 @@ void UBranchNubCPP::OnRegister()
 	StaticMesh->RegisterComponent();
 	StaticMesh->AttachToComponent(this, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
 	SetWantsToGrow(false);
-	SetShow(false);
-
 }
 
 void UBranchNubCPP::OnComponentDestroyed(bool bDestroyingHierarchy)
