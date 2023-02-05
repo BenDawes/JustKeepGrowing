@@ -22,6 +22,7 @@ UBranchSegmentCPP::UBranchSegmentCPP()
 	ClampAngleTolerance = 35;
 
 	PointerMesh = CreateDefaultSubobject<UStaticMeshComponent>("PointerMesh");
+	BranchDirector = CreateDefaultSubobject<UBranchDirector>("BranchDirector");
 
 	CapsuleComponent = CreateDefaultSubobject<UCapsuleComponent>("CapsuleComponent");
 	CapsuleComponent->InitCapsuleSize(StartRadius - 5, (Length / 2) - 5);
@@ -45,7 +46,10 @@ void UBranchSegmentCPP::OnRegister()
 	CapsuleComponent->AttachToComponent(this, FAttachmentTransformRules::SnapToTargetIncludingScale);
 	CapsuleComponent->SetGenerateOverlapEvents(true);
 	CapsuleComponent->SetCollisionResponseToChannel(ECollisionChannel::ECC_GameTraceChannel2, ECollisionResponse::ECR_Block);
+	BranchDirector->RegisterComponent();
+	BranchDirector->AttachToComponent(this, FAttachmentTransformRules::SnapToTargetIncludingScale);
 	OnConfigurationChanged();
+	// PointerMesh->DestroyComponent();
 }
 
 void UBranchSegmentCPP::ShowPointer()
@@ -73,6 +77,7 @@ void UBranchSegmentCPP::DebugCall()
 
 void UBranchSegmentCPP::CalculateNewDirection(APlayerController* PC, FVector2D ScreenPosition, FVector CharacterLocation, FRotator CharacterViewRotation)
 {
+	/*
 	FVector WorldOrigin;
 	FVector WorldDirection;
 	if (UGameplayStatics::DeprojectScreenToWorld(PC, ScreenPosition, WorldOrigin, WorldDirection) == true)
@@ -95,9 +100,10 @@ void UBranchSegmentCPP::CalculateNewDirection(APlayerController* PC, FVector2D S
 		// GrowDirectionWorld = (-GrowDirectionWorld.Vector()).ToOrientationRotator();
 		//GrowDirectionWorld += UKismetMathLibrary::RotatorFromAxisAndAngle(WorldDirection, -90);
 	}
+	*/
 
-	ClampGrowDirection();
-	PointerMesh->SetWorldRotation(GrowDirectionWorld);
+	//ClampGrowDirection();
+	//PointerMesh->SetWorldRotation(GrowDirectionWorld);
 }
 
 void UBranchSegmentCPP::ClampGrowDirection()
@@ -155,6 +161,11 @@ void UBranchSegmentCPP::ClampGrowDirection()
 	).Clamp();
 }
 
+void UBranchSegmentCPP::SetGrowDirection(FRotator NewDirection)
+{
+	GrowDirectionWorld = NewDirection;
+}
+
 void UBranchSegmentCPP::OnConfigurationChanged()
 {
 	AdjustCollider();
@@ -164,14 +175,18 @@ void UBranchSegmentCPP::OnConfigurationChanged()
 
 void UBranchSegmentCPP::AdjustPointerMesh()
 {
-	PointerMesh->SetRelativeLocation(FVector(0, 0, Length + 10));
+	PointerMesh->SetRelativeLocation(FVector(0, 0, Length + 100));
 	PointerMesh->SetWorldRotation(GrowDirectionWorld);
+	BranchDirector->SetRelativeLocation(FVector(0, 0, Length + 10));
+	BranchDirector->SetWorldRotation(GrowDirectionWorld);
 }
 
 // Called when the game starts or when spawned
 void UBranchSegmentCPP::BeginPlay()
 {
 	Super::BeginPlay();
+	ARootsGameState* const GameState = GetWorld()->GetGameState<ARootsGameState>();
+	SegmentGatherRate = GameState->SegmentGatherRate;
 }
 
 // Called every frame

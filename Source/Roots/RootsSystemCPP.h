@@ -45,4 +45,22 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 		float Radius;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+		FResourceSet CostToGrowNewNub;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+		FResourceSet CostToGrowSingleSegment;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+		FResourceSet CostToGrowNewSegment;
+	UFUNCTION(BlueprintImplementableEvent)
+		void OnGrowFinished();
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+		FResourceSet StartingResources;
+
+	FResourceSet CapResources(FResourceSet InResources);
+
+	
 };

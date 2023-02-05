@@ -32,8 +32,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	float RemainingNutrients;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+		float MaxNutrients;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 		UStaticMeshComponent* StaticMesh;
 
+	UFUNCTION()
+		void SetNewScale();
 };

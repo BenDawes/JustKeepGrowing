@@ -8,8 +8,8 @@
 #include "Components/DynamicMeshComponent.h"
 #include "Components/ChildActorComponent.h"
 #include "EarthCPP.h"
+#include "BranchDirector.h"
 #include "BranchSegmentCPP.generated.h"
-
 class UBranchCPP;
 class UBranchNubCPP;
 
@@ -110,6 +110,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 		UStaticMeshComponent* PointerMesh;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+		UBranchDirector* BranchDirector;
 	UFUNCTION(BlueprintCallable)
 		void ShowPointer();
 	UFUNCTION(BlueprintCallable)
@@ -130,6 +133,9 @@ public:
 		void CalculateNewDirection(APlayerController* PC, FVector2D ScreenPosition, FVector CharacterLocation, FRotator CharacterViewRotation);
 
 	void ClampGrowDirection();
+
+	UFUNCTION()
+		void SetGrowDirection(FRotator NewDirection);
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 		float ClampAngleTolerance;

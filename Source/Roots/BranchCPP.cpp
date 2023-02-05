@@ -4,6 +4,7 @@
 #include "BranchCPP.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "ResourceSetFunctions.h"
+#include <Roots/RootsGameState.h>
 
 // Sets default values
 UBranchCPP::UBranchCPP()
@@ -175,6 +176,14 @@ bool UBranchCPP::CanSupportNewSegmentAtEnd()
 
 FResourceSet UBranchCPP::GetResourcesNeededForNewSegment()
 {
+	if (UWorld* World = GetWorld())
+	{
+		ARootsGameState* const GameState = World->GetGameState<ARootsGameState>();
+		if (IsValid(GameState))
+		{
+			return GameState->CostToGrowNewSegment;
+		}
+	}
 	return FResourceSet(10, 10);
 }
 
@@ -193,7 +202,20 @@ FResourceSet UBranchCPP::GetGrowthCost()
 			NSegmentsThatCanGrow += 1;
 		}
 	}
-	return FResourceSet(NSegmentsThatCanGrow, NSegmentsThatCanGrow);
+	float SingleSegmentWaterCost = 1;
+	float SingleSegmentNutrientCost = 1;
+	if (UWorld* World = GetWorld())
+	{
+		ARootsGameState* const GameState = World->GetGameState<ARootsGameState>();
+		if (IsValid(GameState))
+		{
+			FResourceSet CostForGrowingSegment = GameState->CostToGrowSingleSegment;
+			SingleSegmentWaterCost = CostForGrowingSegment.Water;
+			SingleSegmentNutrientCost = CostForGrowingSegment.Nutrients;
+		}
+	}
+
+	return FResourceSet(NSegmentsThatCanGrow * SingleSegmentWaterCost, NSegmentsThatCanGrow * SingleSegmentNutrientCost);
 }
 
 void UBranchCPP::GrowSelf()
@@ -202,11 +224,11 @@ void UBranchCPP::GrowSelf()
 	{
 		return;
 	}
-	if (Segments.Last()->GetSegmentLength() < MaxSegmentLength)
+	/*if (Segments.Last()->GetSegmentLength() < MaxSegmentLength)
 	{
 		Segments.Last()->SegmentDirection = Segments.Last()->GrowDirectionWorld;// .RotateVector(FVector::UpVector).ToOrientationRotator();
 		Segments.Last()->OnConfigurationChanged();
-	}
+	}*/
 	for (int i = 0; i < Segments.Num(); i++)
 	{
 		UBranchSegmentCPP* Segment = Segments[i];

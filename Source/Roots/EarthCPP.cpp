@@ -2,6 +2,8 @@
 
 
 #include "EarthCPP.h"
+#include "RootsGameState.h"
+#include <Kismet/GameplayStatics.h>
 #include "NutrientPocketCPP.h"
 
 // Sets default values
@@ -12,13 +14,18 @@ AEarthCPP::AEarthCPP()
 
 	MoistureLevel = 0.5f;
 	MaxRainfall = 20.f;
+	NutrientPocketClass = ANutrientPocketCPP::StaticClass();
 }
 
 // Called when the game starts or when spawned
 void AEarthCPP::BeginPlay()
 {
 	Super::BeginPlay();
-	
+
+	ARootsGameState* const GameState = GetWorld()->GetGameState<ARootsGameState>();
+	GameState->Earth = this;
+
+	SpawnNutrients();
 }
 
 // Called every frame
@@ -40,13 +47,26 @@ void AEarthCPP::UpdateAllMoisture(float Temperature, float Rainfall)
 	// TODO Add rainfall, if temp < 0 or > 25 scale rainfall down by some factor
 	// Multiply by a porousness texture?
 
-	if (Temperature > 25)
+	ARootsGameState* const GameState = GetWorld()->GetGameState<ARootsGameState>();
+	FWeatherSettings WeatherSettings = GameState->WeatherSettings;
+
+	MaxRainfall = WeatherSettings.MaxAbsorbedRainfall;
+	float ResultMultiplier = 1.f;
+	if (Temperature > WeatherSettings.HotTemperatureThreshold)
 	{
-		MoistureLevel *= 0.8f;
+		ResultMultiplier += WeatherSettings.HotTemperatureMoistureMultiplierAdjustment;
+	}
+	else if (Temperature > WeatherSettings.MediumHotTemperatureThreshold)
+	{
+		ResultMultiplier += WeatherSettings.MediumTemperatureMoistureMultiplierAdjustment;
+	}
+	else
+	{
+		ResultMultiplier += WeatherSettings.DefaultTemperatureMoistureMultiplierAdjustment;
 	}
 
-	float IncomingRainfallMultiplier = 1.f + (Rainfall / MaxRainfall) * (Temperature < 0 ? 0.5f : 1.f);
-	MoistureLevel *= IncomingRainfallMultiplier;
+	ResultMultiplier += (Rainfall / MaxRainfall) * (Temperature < WeatherSettings.ColdTemperatureThreshold ? WeatherSettings.ColdTemperatureIncomingRainfallMultiplierAdjustment : 1.f);
+	MoistureLevel *= ResultMultiplier;
 	MoistureLevel = FMath::Clamp(MoistureLevel, 0.1f, 0.9f);
 }
 
@@ -75,5 +95,37 @@ float AEarthCPP::DrainNutrients(FVector StartLocation, FVector EndLocation, floa
 		}
 	}
 	return AccumulatedNutrients;
+}
+
+void AEarthCPP::SpawnNutrients()
+{
+	/*TArray<AActor*> OutActors;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ANutrientPocketCPP::StaticClass(), OutActors);
+	for (AActor* Actor : OutActors)
+	{
+		Actor->Destroy();
+	}*/
+	int NCellsWidth = 10;
+	int NCellsHeight = 10;
+	int NCellsLength = 10;
+
+	float GridCellWidth = 1400;
+	float GridCellHeight = 900;
+	float GridCellLength = 1400;
+	for (int i = -NCellsWidth / 2; i < NCellsHeight / 2; i++)
+	{
+		for (int j = -NCellsLength / 2; j < NCellsLength / 2; j++)
+		{
+			for (int k = -NCellsHeight / 2; k < NCellsHeight / 2; k++)
+			{
+				if (i == 0 && j == 0 && k == 0)
+				{
+					continue;
+				}
+				FVector SpawnLocation = FVector((i * GridCellWidth) + FMath::FRandRange(0, GridCellWidth), (j * GridCellLength) + FMath::FRandRange(0, GridCellLength), (k * GridCellHeight) + FMath::FRandRange(0, GridCellHeight));
+				GetWorld()->SpawnActor<ANutrientPocketCPP>(NutrientPocketClass.Get(), FTransform(SpawnLocation));
+			}
+		}
+	}
 }
 

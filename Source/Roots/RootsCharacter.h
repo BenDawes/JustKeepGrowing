@@ -7,6 +7,7 @@
 #include "GameFramework/Character.h"
 #include "InputActionValue.h"
 #include "FocusNub.h"
+#include "BranchDirector.h"
 #include "RootsCharacter.generated.h"
 
 class UInputComponent;
@@ -74,6 +75,7 @@ class ARootsCharacter : public ACharacter
 	float TimeSpentAdjusting;
 
 	FIntVector CachedMousePosition;
+	FIntVector DragStartPosition;
 
 public:
 	ARootsCharacter();
@@ -107,6 +109,9 @@ public:
 	UPROPERTY()
 		bool bIsControllingDirection = false;
 
+	UPROPERTY()
+		TWeakObjectPtr<UBranchDirector> SelectedPointer;
+
 
 protected:
 	/** Called for movement input */
@@ -122,6 +127,8 @@ protected:
 	void StartControlling(const FInputActionValue& Value);
 	void StopControlling(const FInputActionValue& Value);
 	void Zoom(const FInputActionValue& Value);
+	
+	void SelectOrDragPointer(UBranchDirector* Pointer, FIntVector MousePos);
 protected:
 	// APawn interface
 	virtual void SetupPlayerInputComponent(UInputComponent* InputComponent) override;

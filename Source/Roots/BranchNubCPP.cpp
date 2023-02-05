@@ -2,6 +2,7 @@
 
 
 #include "BranchNubCPP.h"
+#include "RootsGameState.h"
 #include "RootsDeveloperSettings.h"
 
 // Sets default values
@@ -53,6 +54,15 @@ void UBranchNubCPP::TickComponent(float DeltaTime, ELevelTick TickType, FActorCo
 
 FResourceSet UBranchNubCPP::GetGrowthCost()
 {
+
+	if (UWorld* World = GetWorld())
+	{
+		ARootsGameState* const GameState = World->GetGameState<ARootsGameState>();
+		if (IsValid(GameState))
+		{
+			return GameState->CostToGrowNewNub;
+		}
+	}
 	return FResourceSet(10, 10);
 }
 

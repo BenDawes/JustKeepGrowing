@@ -4,6 +4,7 @@
 #include "RootsSystemCPP.h"
 #include "BranchCPP.h"
 #include "Kismet/KismetMathLibrary.h"
+#include "Kismet/GameplayStatics.h"
 #include "RootsGameState.h"
 
 // Sets default values
@@ -19,6 +20,13 @@ ARootsSystemCPP::ARootsSystemCPP()
 	StoredResources = CreateDefaultSubobject<UResourceContainer>("StoredResources");
 	RootBranch->SetupAttachment(RootComponent);
 	RootBranch->SetWorldRotation(FRotator(180, 0, 0));
+	CostToGrowSingleSegment = FResourceSet(5, 5);
+	CostToGrowNewNub = FResourceSet(50, 50);
+	CostToGrowNewSegment = FResourceSet(25, 25);
+
+	StartingResources = FResourceSet(30, 30);
+	StoredResources->SetResources(StartingResources);
+
 }
 
 void ARootsSystemCPP::PostInitializeComponents()
@@ -45,6 +53,22 @@ void ARootsSystemCPP::BeginPlay()
 			TArray<ARootsSystemCPP*> InputRoots;
 			InputRoots.Add(this);
 			GameState->AddRootsSystems(InputRoots);
+			GameState->CostToGrowNewNub = CostToGrowNewNub;
+			GameState->CostToGrowSingleSegment = CostToGrowSingleSegment;
+			GameState->CostToGrowNewSegment = CostToGrowNewSegment;
+		}
+		FVector SpawnLocation = FVector(0, 0, -FMath::FRandRange(400.f, 1000.f));
+		if (RootBranch->Segments.IsEmpty())
+		{
+			return;
+		}
+		if (AEarthCPP* Earth = Cast<AEarthCPP>(UGameplayStatics::GetActorOfClass(World, AEarthCPP::StaticClass())))
+		{
+			World->SpawnActor<ANutrientPocketCPP>(Earth->NutrientPocketClass.Get(), FTransform(GetActorLocation() + FVector(0, 0, -100)));
+			if (!RootBranch->Segments.IsEmpty())
+			{
+				World->SpawnActor<ANutrientPocketCPP>(Earth->NutrientPocketClass.Get(), FTransform(RootBranch->Segments.Last()->GetComponentLocation()));
+			}
 		}
 	}
 }
@@ -60,11 +84,13 @@ void ARootsSystemCPP::Grow()
 {
 	StoredResources->SetResources(RootBranch->Grow(StoredResources->Resources));
 	RootBranch->AlignSegments();
+	OnGrowFinished();
 }
 
 FResourceSet ARootsSystemCPP::GatherResources()
 {
 	FResourceSet Result = RootBranch->GatherResources();
+	Result = CapResources(Result);
 	StoredResources->AddResources(Result);
 	return Result;
 }
@@ -85,4 +111,14 @@ void ARootsSystemCPP::PostEditChangeProperty(struct FPropertyChangedEvent& e)
 		float DiffPct = Radius / CachedRadius;
 	}
 	Super::PostEditChangeProperty(e);
+}
+
+FResourceSet ARootsSystemCPP::CapResources(FResourceSet InResources)
+{
+	int NSegments = RootBranch->GetAllSubSegments().Num();
+
+	float MaxWater = NSegments * 100;
+	float MaxNutrients = NSegments * 100;
+
+	return FResourceSet(FMath::Clamp(InResources.Water, 0, MaxWater), FMath::Clamp(InResources.Nutrients, 0, MaxNutrients));
 }

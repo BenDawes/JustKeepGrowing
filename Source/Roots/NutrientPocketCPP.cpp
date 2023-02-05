@@ -2,6 +2,7 @@
 
 
 #include "NutrientPocketCPP.h"
+#include <Roots/RootsDeveloperSettings.h>
 
 // Sets default values
 ANutrientPocketCPP::ANutrientPocketCPP()
@@ -11,14 +12,23 @@ ANutrientPocketCPP::ANutrientPocketCPP()
 	RootComponent = CreateDefaultSubobject<USceneComponent>("RootComponent");
 	StaticMesh = CreateDefaultSubobject<UStaticMeshComponent>("StaticMesh");
 	StaticMesh->SetupAttachment(RootComponent);
-	StartingNutrients = 500;
-	RemainingNutrients = 500;
+	const URootsDeveloperSettings* DevSettings = GetDefault<URootsDeveloperSettings>(); // Access via CDO
+	StaticMesh->SetStaticMesh(DevSettings->NutrientsMeshes[FMath::RandRange(0, DevSettings->NutrientsMeshes.Num() - 1)].LoadSynchronous());
+	StaticMesh->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore); // Nutrients
+	StaticMesh->SetCollisionResponseToChannel(ECollisionChannel::ECC_GameTraceChannel3, ECollisionResponse::ECR_Block); // Nutrients
+
+	MaxNutrients = 1200;
+	StartingNutrients = FMath::FRandRange(MaxNutrients / 2, MaxNutrients);
+	RemainingNutrients = StartingNutrients;
 }
 
 // Called when the game starts or when spawned
 void ANutrientPocketCPP::BeginPlay()
 {
 	Super::BeginPlay();
+	const URootsDeveloperSettings* DevSettings = GetDefault<URootsDeveloperSettings>(); // Access via CDO
+	StaticMesh->SetStaticMesh(DevSettings->NutrientsMeshes[FMath::RandRange(0, DevSettings->NutrientsMeshes.Num() - 1)].LoadSynchronous());
+	SetNewScale();
 	
 }
 
@@ -33,8 +43,13 @@ float ANutrientPocketCPP::DrainNutrients(float Rate)
 {
 	float Result = FMath::Clamp(Rate, 0, RemainingNutrients);
 	RemainingNutrients -= Result;
-	float NewScale = (RemainingNutrients + StartingNutrients) / (StartingNutrients * 2);
-	StaticMesh->SetRelativeScale3D(FVector(NewScale));
+	SetNewScale();
 	return Result;
+}
+
+void ANutrientPocketCPP::SetNewScale()
+{
+	float NewScale = (RemainingNutrients + StartingNutrients) / (MaxNutrients * 2);
+	StaticMesh->SetRelativeScale3D(FVector(NewScale));
 }
 

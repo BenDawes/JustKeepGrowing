@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "NutrientPocketCPP.h"
 #include "GameFramework/Actor.h"
 #include "EarthCPP.generated.h"
 
@@ -37,4 +38,10 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 		float MaxRainfall;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+		TSubclassOf<ANutrientPocketCPP> NutrientPocketClass;
+
+	UFUNCTION()
+		void SpawnNutrients();
 };

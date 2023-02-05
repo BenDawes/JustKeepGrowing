@@ -218,7 +218,15 @@ void ARootsCharacter::Look(const FInputActionValue& Value)
 					{
 						SelectedBranchSegment->CalculateNewDirection(PC, MousePosition, GetActorLocation(), GetViewRotation());
 					}
+					if (SelectedPointer.IsValid())
+					{
+						float MouseX;
+						float MouseY;
+						PC->GetMousePosition(MouseX, MouseY);
+						SelectOrDragPointer(SelectedPointer.Get(), FIntVector(MouseX, MouseY, 0));
+					}
 				}
+
 			}
 		}
 	}
@@ -286,6 +294,14 @@ void ARootsCharacter::TrySelect(const FInputActionValue& Value)
 			SelectBranchSegment(Segment);
 			return;
 		}
+		if (UBranchDirector* Pointer = Cast<UBranchDirector>(Result.GetComponent()->GetAttachParent()))
+		{
+			float MouseX;
+			float MouseY;
+			PC->GetMousePosition(MouseX, MouseY);
+			SelectOrDragPointer(Pointer, FIntVector(MouseX, MouseY, 0));
+			return;
+		}
 	}
 }
 
@@ -313,4 +329,23 @@ void ARootsCharacter::Zoom(const FInputActionValue& Value)
 	// input is a Vector2D
 	FVector2D ZoomVector = Value.Get<FVector2D>();
 	TargetPivotDistance = FMath::Clamp(TargetPivotDistance + (50 * (ZoomVector.X < 0 ?  1 : -1)), 200, 1500);
+}
+
+void ARootsCharacter::SelectOrDragPointer(UBranchDirector* Pointer, FIntVector MousePos)
+{
+	if (!bIsControllingDirection)
+	{
+		SelectedPointer = Pointer;
+		SetViewTargetComponent(Pointer);
+	}
+	else  if (SelectedPointer.IsValid())
+	{
+		FIntVector MouseDiff = MousePos - DragStartPosition;
+		FVector MouseDiffVec = FVector(0, MouseDiff.X, MouseDiff.Y);
+		FVector MouseDiffAxisVec = FVector::CrossProduct(FVector::ForwardVector, MouseDiffVec);
+		FVector AxisVecWorldSpace = GetViewRotation().RotateVector(MouseDiffAxisVec);
+
+		SelectedPointer->TryAddWorldRotation(UKismetMathLibrary::RotatorFromAxisAndAngle(AxisVecWorldSpace, MouseDiff.Size()));
+	}
+	DragStartPosition = MousePos;
 }
